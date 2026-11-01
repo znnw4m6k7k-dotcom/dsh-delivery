@@ -87,6 +87,8 @@ export function inferStage(s) {
   if (!s.contract.confirmed_by_user) return '合同待确认'
   if (!s.freeze.version) return '实现中'
   if (!s.qa.exists) return '等待独立验收'
+  // 结论文件存在但读不出通过/不通过（空对象、坏 JSON），不能当成“验收未通过”
+  if (s.qa.verdict === 'unknown' || s.qa.verdict === 'none') return '验收结论无法识别'
   if (s.qa.verdict !== 'pass') return '验收未通过，修复中'
   if (!s.report.exists) return '写报告'
   if (s.retro.total === 0) return '已交付，待复盘'
@@ -100,6 +102,23 @@ function verdictOf(qa) {
   if (/^(pass|passed|release|ready|approved|通过)/.test(r)) return 'pass'
   if (r) return 'fail'
   return 'unknown'
+}
+
+/**
+ * 推断“现在卡在哪、在等谁”，给工作台顶部那行醒目文字用。
+ * who：user（等用户）、agent（等主 Agent）、qa（等 QA）、none（没有在等谁）。
+ */
+export function inferNext(s, rework = 0) {
+  if (!s.contract) return { who: 'agent', text: '先做需求访谈，再把验收条目交给你确认' }
+  if (!s.contract.confirmed_by_user) return { who: 'user', text: '等你确认验收条目' }
+  if (!s.freeze.version) return { who: 'agent', text: 'Agent 正在实现，完成后冻结版本' }
+  if (!s.qa.exists) return { who: 'qa', text: `等 QA 验收 ${s.freeze.version}` }
+  if (s.qa.verdict === 'unknown' || s.qa.verdict === 'none') return { who: 'qa', text: `QA 结论读不出来，检查 .delivery/qa/${s.freeze.version}.json` }
+  if (s.qa.verdict !== 'pass') return { who: 'agent', text: `Agent 在修第 ${Math.max(rework, 1)} 轮` }
+  if (!s.report.exists) return { who: 'agent', text: 'Agent 在写交付报告' }
+  if (s.retro.total === 0) return { who: 'user', text: '验收通过，可以做复盘了' }
+  if (s.retro.byReview.pending) return { who: 'user', text: '等你逐条确认复盘经验' }
+  return { who: 'none', text: '交付和复盘都完成了，没有在等谁' }
 }
 
 /** 读取项目的工作台数据。start 可以是项目里任意目录。 */
@@ -119,6 +138,25 @@ export function readWorkbench(start, { evidenceLimit = 20 } = {}) {
   const evidenceAll = readJsonl(path.join(d, 'evidence.jsonl'))
   const evidence = evidenceAll.slice(-evidenceLimit).reverse()
   const evCur = evidenceAll.filter((e) => st.version && String(e.version) === st.version)
+
+  // 返工轮数 = QA 不通过的版本数
+  let rework = 0
+  for (const v of qaVersions) {
+    if (verdictOf(readJson(path.join(d, 'qa', `${v}.json`))) === 'fail') rework++
+  }
+
+  // 本版本最近一次验收（purpose: delivery）运行的测试计数
+  const deliveryRuns = evCur.filter((e) => e.purpose === 'delivery')
+  const latestDelivery = deliveryRuns.length ? deliveryRuns[deliveryRuns.length - 1] : undefined
+  const currentVersion = { runs: evCur.length, errors: evCur.filter((e) => e.is_error).length }
+  // 只有存在验收运行时才补 passed/failed/total/unconfirmed（兼容旧版工作台数据结构）
+  if (latestDelivery) {
+    const t = latestDelivery.tests
+    currentVersion.passed = typeof t?.passed === 'number' ? t.passed : null
+    currentVersion.failed = typeof t?.failed === 'number' ? t.failed : null
+    currentVersion.total = typeof t?.total === 'number' ? t.total : null
+    currentVersion.unconfirmed = !t || latestDelivery.count_unconfirmed === true
+  }
 
   let reportText
   try { reportText = fs.readFileSync(path.join(d, 'report.md'), 'utf8') } catch {}
@@ -161,13 +199,15 @@ export function readWorkbench(start, { evidenceLimit = 20 } = {}) {
     acceptance: acceptanceRows(contract, st.qa),
     evidence: {
       recent: evidence,
-      currentVersion: { runs: evCur.length, errors: evCur.filter((e) => e.is_error).length },
+      currentVersion,
     },
     report: { exists: reportText !== undefined, unverified: reportText ? /未验收/.test(reportText) : false },
     industryUsage: usage,
     retro: { total: cands.length, byReview },
+    rework,
   }
   out.stage = inferStage(out)
+  out.next = inferNext(out, rework)
   return out
 }
 

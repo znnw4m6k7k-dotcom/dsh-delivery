@@ -11,7 +11,8 @@ window.__ModuleLoader__.load({
     const zh = {
       button: '交付工作台', title: '交付工作台', project: '项目', refresh: '刷新', close: '关闭', loading: '读取中…',
       none: '这个会话的工作目录里还没有 .delivery/，项目还没有进入交付流程。',
-      failed: '读取失败：{reason}', stage: '阶段', version: '冻结版本', qa: 'QA 结论', passed: '验收通过',
+      failed: '读取失败：{reason}', next: '下一步', test: '测试', testUnknown: '数量未确认', rework: '返工 {n} 轮', reworkHint: '建议停下来和用户确认范围',
+      stage: '阶段', version: '冻结版本', qa: 'QA 结论', passed: '验收通过',
       contract: '合同', confirmed: '用户已确认', unconfirmed: '用户未确认', goal: '目标', industry: '行业',
       acceptance: '验收条目', noAcceptance: '合同里没有验收条目。', orphan: '合同里没有这条',
       freeze: '冻结文件', noFreeze: '还没有冻结。', tests: '本版本测试运行 {runs} 次，出错 {errors} 次',
@@ -26,7 +27,8 @@ window.__ModuleLoader__.load({
     const en = {
       button: 'Delivery workbench', title: 'Delivery workbench', project: 'Project', refresh: 'Refresh', close: 'Close', loading: 'Loading…',
       none: 'No .delivery/ in this session\'s working directory yet.',
-      failed: 'Failed to read: {reason}', stage: 'Stage', version: 'Frozen version', qa: 'QA verdict', passed: 'Accepted',
+      failed: 'Failed to read: {reason}', next: 'Next', test: 'Tests', testUnknown: 'Count unconfirmed', rework: '{n} rework rounds', reworkHint: 'Suggest stopping to confirm scope with the user',
+      stage: 'Stage', version: 'Frozen version', qa: 'QA verdict', passed: 'Accepted',
       contract: 'Contract', confirmed: 'Confirmed by user', unconfirmed: 'Not confirmed', goal: 'Goal', industry: 'Industry',
       acceptance: 'Acceptance items', noAcceptance: 'No acceptance items in the contract.', orphan: 'Not in contract',
       freeze: 'Frozen files', noFreeze: 'Not frozen yet.', tests: '{runs} test runs for this version, {errors} failed',
@@ -47,6 +49,7 @@ window.__ModuleLoader__.load({
 
     const css = {
       button: { border: 'none', background: 'transparent', color: 'var(--dsw-alias-label-secondary)', cursor: 'pointer', padding: '4px 8px', borderRadius: 6, fontSize: 12 },
+      next: { marginTop: 8, padding: '8px 10px', border: '1px solid var(--dsw-alias-border-l1)', borderRadius: 8, background: 'var(--dsw-alias-bg-layer-1)', fontSize: 13 },
       panel: { position: 'fixed', top: 56, right: 16, bottom: 16, width: 420, zIndex: 50, display: 'flex', flexDirection: 'column', background: 'var(--dsw-alias-bg-overlay, Canvas)', color: 'var(--dsw-alias-label-primary, CanvasText)', border: '1px solid var(--dsw-alias-border-l1)', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,.18)', fontSize: 13, lineHeight: 1.5 },
       head: { display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', borderBottom: '1px solid var(--dsw-alias-border-l1)' },
       body: { flex: 1, minHeight: 0, overflow: 'auto', padding: '8px 16px 16px' },
@@ -66,12 +69,24 @@ window.__ModuleLoader__.load({
       if (!s.found) return h('p', { style: css.note }, t('none'))
       const pass = s.acceptance.filter((r) => r.status === 'pass').length
       const c = s.contract
+      // 本版本最近一次验收运行的测试计数；解析不出来时显示“数量未确认”
+      const cv = s.evidence.currentVersion
+      const testText = cv.unconfirmed === false ? `${cv.passed ?? 0}/${cv.total ?? 0}` : t('testUnknown')
+      const rework = s.rework ?? 0
+      const alert = rework >= 3
+      // 顶部一句话：现在卡在哪、在等谁；返工 3 轮及以上标红提示停下来确认范围
+      const nextLine = h('div', { style: { ...css.next, ...(alert ? { color: TONE.bad, borderColor: TONE.bad, fontWeight: 600 } : {}) } },
+        t('next') + '：' + (s.next?.text ?? ''),
+        rework > 0 ? '（' + t('rework', { n: String(rework) }) + '）' : '',
+        alert ? ' ' + t('reworkHint') : '')
       return h(React.Fragment, null,
+        nextLine,
         h('div', { style: css.kpis },
           h(Kpi, { label: t('stage') }, s.stage),
           h(Kpi, { label: t('version') }, s.freeze.version ?? t('notFrozen')),
           h(Kpi, { label: t('qa') }, h(Pill, { tone: V_TONE[s.qa.verdict] }, t('v.' + s.qa.verdict))),
-          h(Kpi, { label: t('passed') }, `${pass}/${s.acceptance.length}`)),
+          h(Kpi, { label: t('passed') }, `${pass}/${s.acceptance.length}`),
+          h(Kpi, { label: t('test') }, testText)),
         c && h(React.Fragment, null,
           h('div', { style: css.h }, t('contract'), ' ', h(Pill, { tone: c.confirmed_by_user ? 'ok' : 'warn' }, t(c.confirmed_by_user ? 'confirmed' : 'unconfirmed'))),
           h('div', null, h('b', null, t('goal'), '：'), c.goal),

@@ -37,4 +37,17 @@ cd dsh-delivery-repo/kit && sh install.sh
 - [ ] 页面上的验收条目、冻结版本、QA 结论和 `.delivery/` 里的文件一致。
 - [ ] 也可以自己在终端运行上面的命令，然后 `open <项目>/.delivery/workbench.html`。
 
+## 5. 第一批改进（1.4.0）
+> 这 6 项改了 `kit/bundle/index.js`、`kit/bundle/workbench/state.mjs`、`render.mjs`、新增 `doctor.mjs`、`kit/bundle/client.js`、`kit/skills/delivery-protocol/SKILL.md`，单元测试见 `kit/tests/`。下面是在真实 DSH 里人工核对的部分，先不打勾。
+- [ ] 重新运行 `sh install.sh` 安装 1.4.0，Cmd+Q 完全退出 DSH 再打开；`/delivery-workbench`、`/delivery-doctor` 两个命令都还在。
+- [ ] 测试证据计数：在一个有 `.delivery/` 且已冻结的项目里运行 freeze.json 里的测试命令，`.delivery/evidence.jsonl` 新增行里有 `"purpose":"delivery"` 和 `"tests":{"passed":…,"failed":…,"total":…}`。
+- [ ] 排查运行不算验收：运行 `node -e "console.log(1)"` 这类诊断命令，记录里是 `"purpose":"diagnostic"`；输出解析不出计数时该行是 `"tests":null` 且 `"count_unconfirmed":true`。
+- [ ] 原样重跑拦截（R6）：紧接着对同一冻结版本再运行一次同一条测试命令，应被 `[交付守卫]` 拒绝，提示里有“同一个测试已经跑过”和 `retry_reason`；在命令后加注释 `# retry_reason: 环境重建后重跑` 再运行应放行，且证据里记下这个原因。
+- [ ] QA 等待验收期间只读（R3 加强）：冻结后、还没有 `.delivery/qa/<版本>.json` 时，让 QA 子 Agent 改一个普通项目文件应被拒绝；写 `.delivery/qa/` 下的文件可以。主 Agent 行为不变。
+- [ ] 守卫拒绝说人话：触发任意一条拒绝（例如等验收时改冻结文件），拒绝信息最后一行是 `【给你的说明】…`，能看懂这是正常保护以及自己要不要做什么。
+- [ ] 工作台“当前卡在哪”：打开交付工作台，顶部有一行“下一步：…”，KPI 区有“测试”格（显示 passed/total，解析不出时显示“数量未确认”）。
+- [ ] 返工标红：连续 3 个冻结版本 QA 不通过时，工作台顶部那一行变红，并出现“建议停下来和用户确认范围”。
+- [ ] 自检命令：在 DSH 里输入 `/delivery-doctor`，输出若干行“✓ 项目：说明”或“✗ 项目：怎么修”；故意改坏某个项目的 `.delivery/freeze.json` 再运行，应点名该文件并说怎么修。
+- [ ] 不误伤排查命令：冻结命令是 `npm test` 时，直接运行 `grep "npm test" package.json` 或 `echo "npm test"` 不应被 R6 拦，也不应在 evidence.jsonl 里记成 `purpose:"delivery"`。
+
 做完把结果（截图或哪一步不对）发回项目里即可。
