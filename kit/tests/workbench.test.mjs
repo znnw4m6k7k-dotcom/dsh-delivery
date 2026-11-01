@@ -125,10 +125,52 @@ test('apply 注册 /delivery-workbench 命令（模拟 Host）', async () => {
   let registered
   const ctx = {
     on() {}, get: (n) => (n === 'workingDirectory' ? { get: () => root } : undefined),
-    inject(names, fn) { assert.deepEqual(names, ['commands']); fn({ commands: { register: (d) => { registered = d } } }) },
+    inject(names, fn) { if (names[0] === 'commands') fn({ commands: { register: (d) => { registered = d } } }) },
   }
   apply(ctx)
   assert.equal(registered.name, 'delivery-workbench')
   const r = await registered.handler({ agent: { session: {} }, rawInput: 'json' })
   assert.equal(JSON.parse(r.text).found, true)
+})
+
+test('面板取数路由：按 sessionId 找工作目录，返回 JSON，不经过命令', async () => {
+  const { apply, WORKBENCH_PATH, workbenchResponse } = await import('../bundle/index.js')
+  const root = project()
+  const live = { header: { cwd: '/nowhere' } }
+  const services = {
+    sessions: { get: (id) => (id === 'live' ? live : undefined) },
+    workingDirectory: { get: (s) => (s === live ? root : undefined) },
+    sessionPersistence: { stat: async (id) => (id === 'cold' ? { header: { cwd: root } } : undefined) },
+  }
+  const routes = []
+  const ctx = {
+    get: (n) => services[n],
+    inject: (deps, fn) => { if (deps.includes('connection')) fn({ connection: { fetch: { register: (r) => routes.push(r) } } }) },
+    on: () => {},
+  }
+  apply(ctx)
+  assert.equal(routes.length, 1)
+  assert.equal(routes[0].path, WORKBENCH_PATH)
+  assert.match(WORKBENCH_PATH, /^\/api\/[a-z.]+$/)
+  assert.deepEqual(routes[0].methods, ['GET'])
+
+  const call = (q) => routes[0].fetch(new Request('http://x' + WORKBENCH_PATH + q))
+  const r1 = await call('?sessionId=live')
+  assert.equal(r1.status, 200)
+  assert.equal(r1.headers.get('cache-control'), 'no-store')
+  const s1 = await r1.json()
+  assert.equal(s1.found, true)
+  assert.equal(s1.contract.goal, '奶茶店开业方案')
+
+  const s2 = await (await call('?sessionId=cold')).json()
+  assert.equal(s2.found, true)
+  assert.equal((await call('')).status, 400)
+  assert.equal((await call('?sessionId=gone')).status, 404)
+  assert.equal(typeof workbenchResponse, 'function')
+})
+
+test('面板 client.js 不再通过命令取数', () => {
+  const src = fs.readFileSync(path.join(here, '..', 'bundle', 'client.js'), 'utf8')
+  assert.doesNotMatch(src, /commands\.execute/)
+  assert.match(src, /api\/deliverykit\.workbench/)
 })

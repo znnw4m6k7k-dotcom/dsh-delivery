@@ -1,5 +1,5 @@
 // 交付工作台面板（Client 端）。会话标题栏右侧加一个按钮，点开后显示当前会话的交付状态。
-// 数据来自 Host 端命令 `/delivery-workbench json`（只读 .delivery/），本文件不读文件、不写会话。
+// 数据来自 Host 端只读路由 GET api/deliverykit.workbench（同源 fetch，不经过命令，不会在聊天里留下记录）。
 // 样式只用 --dsw-alias-* 主题 token；文案走 Client locale 服务。
 window.__ModuleLoader__.load({
   id: '@local/delivery-kit',
@@ -47,9 +47,9 @@ window.__ModuleLoader__.load({
 
     const css = {
       button: { border: 'none', background: 'transparent', color: 'var(--dsw-alias-label-secondary)', cursor: 'pointer', padding: '4px 8px', borderRadius: 6, fontSize: 12 },
-      panel: { position: 'fixed', top: 56, right: 16, bottom: 16, width: 420, zIndex: 50, display: 'flex', flexDirection: 'column', background: 'var(--dsw-alias-bg-overlay)', color: 'var(--dsw-alias-label-primary)', border: '1px solid var(--dsw-alias-border-l1)', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,.18)', fontSize: 13, lineHeight: 1.5 },
+      panel: { position: 'fixed', top: 56, right: 16, bottom: 16, width: 420, zIndex: 50, display: 'flex', flexDirection: 'column', background: 'var(--dsw-alias-bg-overlay, Canvas)', color: 'var(--dsw-alias-label-primary, CanvasText)', border: '1px solid var(--dsw-alias-border-l1)', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,.18)', fontSize: 13, lineHeight: 1.5 },
       head: { display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', borderBottom: '1px solid var(--dsw-alias-border-l1)' },
-      body: { overflow: 'auto', padding: '8px 16px 16px' },
+      body: { flex: 1, minHeight: 0, overflow: 'auto', padding: '8px 16px 16px' },
       h: { fontSize: 12, color: 'var(--dsw-alias-label-secondary)', margin: '14px 0 6px', fontWeight: 600 },
       kpis: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 },
       kpi: { background: 'var(--dsw-alias-bg-layer-1)', borderRadius: 8, padding: '8px 10px' },
@@ -100,27 +100,35 @@ window.__ModuleLoader__.load({
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'delivery-kit: workbench dictionaries')
 
-        async function load(sessionId) {
-          const remote = ctx.get('remote')
-          if (!remote?.commands) throw new Error('remote.commands unavailable')
-          const res = await remote.commands.execute(sessionId, '/delivery-workbench json', [])
-          if (!res.ok) throw new Error(`${res.error.code}: ${res.error.message}`)
-          const v = res.value
-          if (!v) throw new Error('/delivery-workbench not registered')
-          if (v.kind !== 'success') throw new Error(v.text)
-          return JSON.parse(v.text)
+        async function load(sessionId, signal) {
+          const res = await fetch('api/deliverykit.workbench?sessionId=' + encodeURIComponent(sessionId), { signal, cache: 'no-store' })
+          const body = await res.json().catch(() => undefined)
+          if (!res.ok) throw new Error(body?.error ?? `HTTP ${res.status}`)
+          if (!body || typeof body.found !== 'boolean') throw new Error('unexpected response')
+          return body
+        }
+
+        // 渲染出错时显示错误，不让整个标题栏崩掉
+        class Boundary extends React.Component {
+          constructor(props) { super(props); this.state = { error: undefined } }
+          static getDerivedStateFromError(error) { return { error } }
+          render() { return this.state.error ? h('p', { style: { color: TONE.bad } }, String(this.state.error?.message ?? this.state.error)) : this.props.children }
         }
 
         function WorkbenchButton({ sessionId, t }) {
           const [open, setOpen] = React.useState(false)
           const [state, setState] = React.useState({ loading: false })
-          const refresh = React.useCallback(() => {
-            let alive = true
-            setState({ loading: true })
-            load(sessionId).then((s) => alive && setState({ s }), (e) => alive && setState({ error: String(e?.message ?? e) }))
-            return () => { alive = false }
-          }, [sessionId])
-          React.useEffect(() => (open ? refresh() : undefined), [open, refresh])
+          const [tick, setTick] = React.useState(0)
+          React.useEffect(() => {
+            if (!open || !sessionId) return undefined
+            const ac = new AbortController()
+            setState((prev) => ({ ...prev, loading: true, error: undefined }))
+            load(sessionId, ac.signal).then(
+              (s) => { if (!ac.signal.aborted) setState({ loading: false, s }) },
+              (e) => { if (!ac.signal.aborted) setState({ loading: false, error: String(e?.message ?? e) }) })
+            return () => ac.abort()
+          }, [open, sessionId, tick])
+          const refresh = () => setTick((n) => n + 1)
           React.useEffect(() => {
             if (!open) return undefined
             const onKey = (ev) => { if (ev.key === 'Escape') setOpen(false) }
@@ -135,9 +143,9 @@ window.__ModuleLoader__.load({
                 h('button', { type: 'button', style: css.button, onClick: refresh }, t('refresh')),
                 h('button', { type: 'button', style: css.button, onClick: () => setOpen(false) }, t('close'))),
               h('div', { style: css.body },
-                state.loading ? h('p', { style: css.note }, t('loading'))
-                  : state.error ? h('p', { style: { color: TONE.bad } }, t('failed', { reason: state.error }))
-                  : state.s ? h(Content, { s: state.s, t }) : null)))
+                state.error ? h('p', { style: { color: TONE.bad } }, t('failed', { reason: state.error }))
+                  : state.s ? h(Boundary, { key: tick }, state.loading && h('p', { style: css.note }, t('loading')), h(Content, { s: state.s, t }))
+                  : h('p', { style: css.note }, t('loading')))))
         }
 
         ctx.slots.inject('conversation.session.header.utilities', () => ctx.slots.register({

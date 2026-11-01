@@ -7,8 +7,9 @@
 //   R4 当前冻结版本还没有 QA 结论时，不能写 report.md（除非写明“未验收”及原因）
 //   R5 行业经验包的 lessons.jsonl 只能通过 lessons.py merge 写入
 //   E1 运行冻结清单里的测试命令时，把结果追加到 .delivery/evidence.jsonl
-// 另外注册斜杠命令 /delivery-workbench：汇总当前会话工作目录下的 .delivery/，
-// 供交付工作台面板（client.js）调用；用户也可以直接输入查看摘要。
+// 交付工作台：
+//   - 只读路由 GET /api/deliverykit.workbench?sessionId=…，给面板（client.js）取数，不写会话日志
+//   - 斜杠命令 /delivery-workbench，用户手动输入查看摘要
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -215,6 +216,37 @@ export async function workbenchCommand(cwd, rawInput) {
   return { kind: 'success', text: lines.join('\n') }
 }
 
+export const WORKBENCH_PATH = '/api/deliverykit.workbench'
+
+/** 由 sessionId 找当前工作目录：live 会话用 workingDirectory（跟随 cd），否则用会话创建时的 cwd */
+export async function sessionCwd(ctx, sessionId) {
+  if (!sessionId) return undefined
+  const sessions = ctx.get('sessions')
+  const session = sessions?.get(sessionId)
+  if (session) {
+    const wd = ctx.get('workingDirectory')
+    const cwd = wd ? wd.get(session) : undefined
+    return cwd ?? session.header?.cwd
+  }
+  const stored = await ctx.get('sessionPersistence')?.stat(sessionId)
+  return stored?.header?.cwd
+}
+
+/** GET /api/deliverykit.workbench?sessionId=… → readWorkbench 的 JSON */
+export async function workbenchResponse(ctx, request) {
+  const json = (body, status = 200) => Response.json(body, { status, headers: { 'cache-control': 'no-store' } })
+  try {
+    const sessionId = new URL(request.url).searchParams.get('sessionId')
+    if (!sessionId) return json({ error: 'missing sessionId' }, 400)
+    const cwd = await sessionCwd(ctx, sessionId)
+    if (!cwd) return json({ error: 'session working directory not found' }, 404)
+    const { readWorkbench } = await import('./workbench/state.mjs')
+    return json(readWorkbench(cwd))
+  } catch (e) {
+    return json({ error: String(e?.message ?? e) }, 500)
+  }
+}
+
 export function apply(ctx) {
   // 交付工作台命令：commands 服务不存在时（比如命令行无 UI 的组合）静默跳过
   if (typeof ctx.inject === 'function') ctx.inject(['commands'], (c) => {
@@ -232,6 +264,16 @@ export function apply(ctx) {
           return { kind: 'error', text: `[交付工作台] 读取失败：${e?.message ?? e}` }
         }
       },
+    })
+  })
+
+  // 交付工作台面板的取数路由：只读、只给本机 owner，不经过命令，所以不会在会话里留下记录
+  if (typeof ctx.inject === 'function') ctx.inject(['connection'], (c) => {
+    c.connection.fetch.register({
+      path: WORKBENCH_PATH,
+      methods: ['GET'],
+      requestBody: 'buffered',
+      fetch: (request) => workbenchResponse(ctx, request),
     })
   })
 
