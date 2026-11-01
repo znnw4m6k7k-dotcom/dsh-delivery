@@ -7,6 +7,9 @@
 //   R4 当前冻结版本还没有 QA 结论时，不能写 report.md（除非写明“未验收”及原因）
 //   R5 行业经验包的 lessons.jsonl 只能通过 lessons.py merge 写入
 //   E1 运行冻结清单里的测试命令时，把结果追加到 .delivery/evidence.jsonl
+// 交付工作台：
+//   - 只读路由 GET /api/deliverykit.workbench?sessionId=…，给面板（client.js）取数，不写会话日志
+//   - 斜杠命令 /delivery-workbench，用户手动输入查看摘要
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -191,7 +194,94 @@ function textOf(result) {
   return parts.map((p) => (p && p.type === 'text' ? p.text : '')).join('\n')
 }
 
+export const WORKBENCH_COMMAND = 'delivery-workbench'
+
+/** /delivery-workbench 的处理：rawInput 为 json 时返回 JSON（给面板用），否则返回中文摘要 */
+export async function workbenchCommand(cwd, rawInput) {
+  if (!cwd) return { kind: 'error', text: '[交付工作台] 拿不到当前会话的工作目录。' }
+  const { readWorkbench } = await import('./workbench/state.mjs')
+  const s = readWorkbench(cwd)
+  if (String(rawInput ?? '').trim() === 'json') return { kind: 'success', text: JSON.stringify(s) }
+  if (!s.found) return { kind: 'success', text: `当前目录（${cwd}）还没有 .delivery/，这个项目没有进入交付流程。` }
+  const pass = s.acceptance.filter((r) => r.status === 'pass').length
+  const changed = s.freeze.files.filter((f) => f.status === 'modified' || f.status === 'missing').length
+  const lines = [
+    `交付工作台：${s.name}`,
+    `阶段：${s.stage}`,
+    `冻结版本：${s.freeze.version ?? '未冻结'}${changed ? `（${changed} 个冻结文件被改或丢失）` : ''}`,
+    `QA：${s.qa.exists ? s.qa.release_status || s.qa.verdict : '未验收'}`,
+    `验收条目：${pass}/${s.acceptance.length} 通过`,
+    `复盘候选：${s.retro.total} 条，待确认 ${s.retro.byReview.pending ?? 0} 条`,
+  ]
+  return { kind: 'success', text: lines.join('\n') }
+}
+
+export const WORKBENCH_PATH = '/api/deliverykit.workbench'
+
+/** 由 sessionId 找当前工作目录：live 会话用 workingDirectory（跟随 cd），否则用会话创建时的 cwd */
+export async function sessionCwd(ctx, sessionId) {
+  if (!sessionId) return undefined
+  const sessions = ctx.get('sessions')
+  const session = sessions?.get(sessionId)
+  if (session) {
+    const wd = ctx.get('workingDirectory')
+    const cwd = wd ? wd.get(session) : undefined
+    return cwd ?? session.header?.cwd
+  }
+  const stored = await ctx.get('sessionPersistence')?.stat(sessionId)
+  return stored?.header?.cwd
+}
+
+/** GET /api/deliverykit.workbench?sessionId=… → readWorkbench 的 JSON */
+export async function workbenchResponse(ctx, request) {
+  const json = (body, status = 200) => Response.json(body, { status, headers: { 'cache-control': 'no-store' } })
+  try {
+    const sessionId = new URL(request.url).searchParams.get('sessionId')
+    if (!sessionId) return json({ error: 'missing sessionId' }, 400)
+    const cwd = await sessionCwd(ctx, sessionId)
+    if (!cwd) return json({ error: 'session working directory not found' }, 404)
+    const { readWorkbench, listDeliveryProjects } = await import('./workbench/state.mjs')
+    const projects = listDeliveryProjects(cwd)
+    // 只允许在候选项目之间切换，不接受任意路径
+    const asked = new URL(request.url).searchParams.get('project')
+    const pick = projects.find((p) => p.root === asked) ?? projects[0]
+    const s = readWorkbench(pick ? pick.root : cwd)
+    return json({ ...s, projects: projects.map(({ root, name, goal }) => ({ root, name, goal })) })
+  } catch (e) {
+    return json({ error: String(e?.message ?? e) }, 500)
+  }
+}
+
 export function apply(ctx) {
+  // 交付工作台命令：commands 服务不存在时（比如命令行无 UI 的组合）静默跳过
+  if (typeof ctx.inject === 'function') ctx.inject(['commands'], (c) => {
+    c.commands.register({
+      name: WORKBENCH_COMMAND,
+      description: '查看交付工作台：合同条目、冻结版本、QA 结论和测试证据（只读）',
+      input: { hint: '[json]' },
+      recordInput: false,
+      handler: async (inv) => {
+        try {
+          const wd = ctx.get('workingDirectory')
+          const cwd = wd && inv.agent ? wd.get(inv.agent.session) : undefined
+          return await workbenchCommand(cwd, inv.rawInput)
+        } catch (e) {
+          return { kind: 'error', text: `[交付工作台] 读取失败：${e?.message ?? e}` }
+        }
+      },
+    })
+  })
+
+  // 交付工作台面板的取数路由：只读、只给本机 owner，不经过命令，所以不会在会话里留下记录
+  if (typeof ctx.inject === 'function') ctx.inject(['connection'], (c) => {
+    c.connection.fetch.register({
+      path: WORKBENCH_PATH,
+      methods: ['GET'],
+      requestBody: 'buffered',
+      fetch: (request) => workbenchResponse(ctx, request),
+    })
+  })
+
   const cwdOf = async (exec) => {
     const wd = ctx.get('workingDirectory')
     if (!exec.agent || !wd) return undefined
