@@ -10,7 +10,8 @@ cd dsh-delivery-repo/kit && sh install.sh
 ```
 然后 Cmd+Q 完全退出 DSH，再打开。
 
-## 1. 守卫生效（三期 A）
+## 1. 守卫生效（三期 A）— 2026-11-01 已在 Mac 上验证通过
+> 冻结文件写入被 `[交付守卫]` 拒绝、文件未变；运行测试命令后 evidence.jsonl 追加记录；工作台命令输出正确。插件列表那一项因交付预设关闭了 plugin_manager 工具没法在会话里查，但拦截生效已能证明插件在运行。
 - [ ] 新会话的插件列表里有 `delivery-guard`，并且已启用。
 - [ ] 在一个有 `.delivery/` 的项目里冻结后（freeze.json 写好、还没有 qa/<版本>.json），让它改一个冻结文件，应被拒绝，提示以 `[交付守卫]` 开头。
 - [ ] 运行 freeze.json 里的测试命令后，`.delivery/evidence.jsonl` 多了一行。

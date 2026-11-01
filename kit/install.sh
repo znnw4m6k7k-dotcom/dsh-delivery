@@ -23,14 +23,14 @@ say "== 交付模式安装 =="
 [ "$(uname -s)" = "Darwin" ] || die "目前只支持 macOS。"
 [ -d "$APP" ] || die "没找到 DeepSeek Harness：$APP
 请先从官方渠道下载安装 DeepSeek Harness，打开一次后再运行本脚本。"
-[ -x "$CLI" ] || die "这个版本的 DeepSeek Harness 没有自带命令行（$CLI）。请升级到 0.2.1 或更新版本。"
+[ -x "$CLI" ] || die "这个版本的 DeepSeek Harness 没有自带命令行（${CLI}）。请升级到 0.2.1 或更新版本。"
 [ -f "$SRC_DIR/bundle/cordis.patch.yml.in" ] || die "安装包不完整：缺少 bundle/cordis.patch.yml.in"
 [ -d "$SRC_DIR/skills/delivery-protocol" ] || die "安装包不完整：缺少 skills/"
 case "$KIT_DIR" in *"'"*) die "安装目录里不能有单引号：$KIT_DIR" ;; esac
 
 VER=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist" 2>/dev/null || echo unknown)
 say "DeepSeek Harness 版本：$VER"
-case "$VER" in 0.2.*) ;; *) say "提示：本组合包按 0.2.1 制作，你的版本是 $VER，装好后请新建会话确认“交付”预设能正常使用。" ;; esac
+case "$VER" in 0.2.*) ;; *) say "提示：本组合包按 0.2.1 制作，你的版本是 ${VER}，装好后请新建会话确认“交付”预设能正常使用。" ;; esac
 
 if ! command -v python3 >/dev/null 2>&1 || ! python3 -c 'import sys' >/dev/null 2>&1; then
   say "提示：没检测到可用的 python3。复盘时整理行业经验需要它，可运行 xcode-select --install 安装。"
@@ -52,7 +52,7 @@ chmod +x "$KIT_DIR/skills/project-retro/scripts/lessons.py" 2>/dev/null || true
 cp "$SRC_DIR/uninstall.sh" "$KIT_DIR/uninstall.sh" 2>/dev/null || true
 
 # 3. 装进 DSH
-say "把组合包装进 DeepSeek Harness（profile: $PROFILE）..."
+say "把组合包装进 DeepSeek Harness（profile: ${PROFILE}）..."
 if ! "$CLI" plugin --profile "$PROFILE" add "$KIT_DIR/bundle"; then
   die "DSH 命令行安装组合包失败。上面是它的原始报错。
 也可以改用应用内安装：在 DSH 里新建会话，让它用 plugin_manager 的 install_bundle 安装目录 $KIT_DIR/bundle 。"
