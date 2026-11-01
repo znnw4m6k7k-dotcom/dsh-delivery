@@ -105,3 +105,30 @@ test('命令行生成 workbench.html，--json 输出汇总', () => {
   const j = JSON.parse(execFileSync(process.execPath, [cli, root, '--json'], { encoding: 'utf8' }))
   assert.equal(j.freeze.version, 'v2')
 })
+
+test('/delivery-workbench 命令：json 和摘要两种输出', async () => {
+  const { workbenchCommand } = await import('../bundle/index.js')
+  const root = project()
+  const j = await workbenchCommand(root, ' json ')
+  assert.equal(j.kind, 'success')
+  assert.equal(JSON.parse(j.text).freeze.version, 'v2')
+  const s = await workbenchCommand(root, '')
+  assert.match(s.text, /冻结版本：v2（2 个冻结文件被改或丢失）/)
+  const none = await workbenchCommand(fs.mkdtempSync(path.join(os.tmpdir(), 'wb-c-')), '')
+  assert.match(none.text, /没有 \.delivery/)
+  assert.equal((await workbenchCommand(undefined, 'json')).kind, 'error')
+})
+
+test('apply 注册 /delivery-workbench 命令（模拟 Host）', async () => {
+  const { apply } = await import('../bundle/index.js')
+  const root = project()
+  let registered
+  const ctx = {
+    on() {}, get: (n) => (n === 'workingDirectory' ? { get: () => root } : undefined),
+    inject(names, fn) { assert.deepEqual(names, ['commands']); fn({ commands: { register: (d) => { registered = d } } }) },
+  }
+  apply(ctx)
+  assert.equal(registered.name, 'delivery-workbench')
+  const r = await registered.handler({ agent: { session: {} }, rawInput: 'json' })
+  assert.equal(JSON.parse(r.text).found, true)
+})
