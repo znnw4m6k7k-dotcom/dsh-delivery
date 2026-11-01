@@ -7,7 +7,8 @@
 //   R4 当前冻结版本还没有 QA 结论时，不能写 report.md（除非写明“未验收”及原因）
 //   R5 行业经验包的 lessons.jsonl 只能通过 lessons.py merge 写入
 //   R6 同一冻结版本、同一条测试命令、同一角色已经验收跑过时，禁止原样重跑（命令里写 # retry_reason 可放行）
-//   E1 记录测试证据：区分验收运行（delivery）和排查运行（diagnostic），并写入 tests 计数
+//   E1 记录测试证据：区分验收运行（delivery）和排查运行（diagnostic），并写入 tests 计数；grep/cat 等只读查看不记录
+// 项目定位：会话 cwd 是工作区根，但命令里 `cd 子项目` 或参数里写了子项目路径时，按子项目判断（工作区可同时有多个项目）
 // 交付工作台：
 //   - 只读路由 GET /api/deliverykit.workbench?sessionId=…，给面板（client.js）取数，不写会话日志
 //   - 斜杠命令 /delivery-workbench，用户手动输入查看摘要
@@ -38,6 +39,130 @@ export function findDeliveryRoot(start) {
     dir = up
   }
   return undefined
+}
+
+// ---- 命令定位：一次命令到底作用在哪个交付项目 ----
+// 会话 cwd 是工作区根目录，但工作区里可能同时有多个交付项目（工作台本身就支持同一工作区多项目切换）。
+// 命令里 `cd 子项目 && pytest` 或 `pytest 子项目/tests` 实际测的是子项目，证据、R1/R3QA/R6
+// 都要按子项目判断，否则会记到根目录的另一个项目上去（2026-11-01 新手试跑就踩了这个坑）。
+
+/** 可能是“跑测试”的命令片段：只用来判断多个 cd 里哪个才是测试命令执行前的最后一个 */
+const TEST_CMD = /\b(?:pytest|unittest|nose2?)\b|\bnode\s+(?:--test|-e|--eval|--check)\b|\bnpm\s+(?:run\s+)?test\b|\bgo\s+test\b|\bpython3?\s+-m\s+(?:unittest|pytest)\b/
+
+/** 按 && / || / ; / 换行拆成 shell 片段（够用即可，不追求完整 shell 语法） */
+function shellSegments(command) {
+  return String(command ?? '').split(/\s*(?:&&|\|\||;|\n)\s*/).map((s) => s.trim()).filter(Boolean)
+}
+
+/** 去掉开头的 cd 链：`cd A && cd B && node --test` → `node --test` */
+function stripCdPrefix(command) {
+  let s = String(command ?? '').trim()
+  for (;;) {
+    const m = s.match(/^cd\s+(?:"[^"]*"|'[^']*'|[^\s;&|]+)\s*(?:&&|\|\||;)\s*/)
+    if (!m) return s
+    s = s.slice(m[0].length)
+  }
+}
+
+/** 取 cd 的参数：支持带引号的路径；`cd -`、`cd --help` 之类忽略 */
+function cdArgOf(rest) {
+  const s = String(rest ?? '').trim()
+  if (!s || s.startsWith('-')) return undefined
+  const quote = s[0] === '"' || s[0] === "'" ? s[0] : ''
+  if (quote) {
+    const end = s.indexOf(quote, 1)
+    return end > 1 ? s.slice(1, end) : undefined
+  }
+  // 先把 “\ ”（转义的空格）当成一个整体，再取到空白/分隔符为止
+  const token = s.match(/^(?:\\ |[^\s;&|])+/)?.[0]
+  return token ? token.replace(/\\ /g, ' ') : undefined
+}
+
+/**
+ * 命令最后会落到哪个目录：
+ * 有测试命令时取“测试命令执行前的最后一个 cd”（多个 cd 以前面的为准）；
+ * 没有测试命令时取最后一个 cd；整条命令没有 cd 返回 undefined。
+ */
+function commandDir(command, cwd) {
+  const segments = shellSegments(command)
+  let dir = path.resolve(cwd)
+  let sawCd = false
+  for (const seg of segments) {
+    const m = seg.match(/^cd\s+([\s\S]+)$/)
+    if (m) {
+      sawCd = true
+      const arg = cdArgOf(m[1])
+      if (arg) dir = path.resolve(dir, arg)
+      continue
+    }
+    if (TEST_CMD.test(seg)) return dir
+  }
+  return sawCd ? dir : undefined
+}
+
+/** 命令参数里出现的、真实存在的路径（相对 cwd 或绝对路径），按出现顺序返回绝对路径 */
+function commandPaths(command, cwd) {
+  const out = []
+  const tokenRe = /"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)'|([^\s"'`<>|&;()]+)/g
+  for (const seg of shellSegments(command)) {
+    if (/^cd\s/.test(seg)) continue
+    for (const m of seg.matchAll(tokenRe)) {
+      let token = (m[1] ?? m[2] ?? m[3] ?? '').trim()
+      if (!token || token.startsWith('-') || token.includes('=')) continue
+      // pytest 的 nodeid 形式 tests/test_a.py::test_x 只看文件路径部分
+      token = token.split('::')[0]
+      // 通配符（node --test tests/*.test.mjs）：保留第一个通配符之前的部分，它一定存在
+      const glob = token.search(/[*?[]/)
+      if (glob >= 0) token = token.slice(0, glob)
+      token = token.replace(/[\\/]+$/, '')
+      if (!token || token === '.') continue
+      const abs = path.isAbsolute(token) ? path.resolve(token) : path.resolve(cwd, token)
+      try { if (!fs.existsSync(abs)) continue } catch { continue }
+      out.push(abs)
+    }
+  }
+  return out
+}
+
+/** root 是否比 base 更深（更靠近工作目录） */
+function deeperThan(root, base) {
+  if (!root) return false
+  if (!base) return true
+  if (root === base) return false
+  return root.startsWith(base + path.sep)
+}
+
+/**
+ * 命令实际作用的交付项目根目录（找不到返回 undefined）：
+ *   1) 命令里有 cd：按 cwd 解析 cd 目标目录，从那里向上找 .delivery；
+ *   2) 否则（或 cd 目标上找不到）：看命令参数里真实存在的路径，取第一个能找到
+ *      比 findDeliveryRoot(cwd) 更深（更近）的 .delivery 的项目；
+ *   3) 都没有就退回 findDeliveryRoot(cwd)。
+ */
+export function resolveCommandRoot(command, cwd) {
+  const cmd = String(command ?? '')
+  const base = cwd ? path.resolve(cwd) : undefined
+  const baseRoot = findDeliveryRoot(base)
+
+  // 1) cd 链
+  if (base && /(?:^|[\s;&|()])cd\s/.test(cmd)) {
+    const dir = commandDir(cmd, base)
+    if (dir) {
+      const root = findDeliveryRoot(dir)
+      if (root) return root
+    }
+  }
+
+  // 2) 命令参数里的路径
+  if (base) {
+    for (const abs of commandPaths(cmd, base)) {
+      const root = findDeliveryRoot(abs)
+      if (root && deeperThan(root, baseRoot)) return root
+    }
+  }
+
+  // 3) 退回会话工作目录
+  return baseRoot
 }
 
 /** "v1.4" → [1,4]；无法解析返回 undefined */
@@ -171,9 +296,13 @@ export function parseTestCounts(output) {
 /** 排查类命令的特征：node -e / node --check / echo / python -c 等，只用于诊断，不算验收 */
 const TESTISH = /\bnode\s+(?:-e|--eval|--check|--test)\b|\bnpm\s+(?:run\s+)?test\b|\bpytest\b|\bgo\s+test\b|\bpython3?\s+-m\s+(?:unittest|pytest)\b|^echo\b|\bpython3?\s+-c\b/
 
-// 明确是“查看/打印”的命令：即使命令文本里出现了冻结命令字符串，也只是排查，永远不算验收
-// （例如 freeze 里是 npm test 时，`grep "npm test" package.json` 不能算测试通过）
-const DIAGNOSTIC_FIRST = /^\s*(?:echo|cat|grep|egrep|fgrep|rg|head|tail|wc|pwd|which|type|stat|diff|node\s+(?:-e|--eval|--check)|python3?\s+-c)\b/
+// 只读查看/打印类命令：不产生证据行；即使命令文本里出现了冻结命令字符串，也永远不算验收
+// （例如 freeze 里是 npm test 时，`grep "npm test" package.json` 不能算测试通过）。
+// 判断前先剥掉开头的 cd 链，`cd app && cat pytest.ini` 同样只是查看。
+const READONLY_FIRST = /^\s*(?:echo|cat|grep|egrep|fgrep|rg|head|tail|wc|pwd|which|type|stat|diff|ls|file|tree|du|df)\b/
+
+// 一次性脚本（node -e / node --check / python -c）常被拿来手工验证产出：记为排查，不算验收
+const SCRIPT_FIRST = /^\s*(?:node\s+(?:-e|--eval|--check)|python3?\s+-c)\b/
 
 /** 命令片段是否作为“完整的一段命令”出现（前后是命令边界，避免 pytest 命中 pytest.ini、npm test 命中带引号的 grep 参数） */
 function containsCommand(cmd, fragment) {
@@ -193,13 +322,15 @@ function containsCommand(cmd, fragment) {
 /**
  * 一次 bash 运行为什么被记录：
  *   delivery = 命令里包含冻结清单里的测试命令（整段匹配），算验收运行
- *   diagnostic = 测试类或只读查看类命令，即使记录了也永远不算验收
- *   undefined = 与测试无关，不记录
+ *   diagnostic = 测试类命令或一次性脚本，记为排查运行，永远不算验收
+ *   undefined = 与测试无关，或只是 grep/cat/head 这类只读查看，不记录
  */
 export function evidencePurpose(command, testCommands = []) {
   const cmd = normalizeCommand(command)
   if (!cmd) return undefined
-  if (DIAGNOSTIC_FIRST.test(cmd)) return 'diagnostic'
+  const head = stripCdPrefix(cmd)
+  if (READONLY_FIRST.test(head)) return undefined
+  if (SCRIPT_FIRST.test(head)) return 'diagnostic'
   const frozen = testCommands.map((t) => String(t ?? '').trim()).filter(Boolean)
   if (frozen.some((t) => containsCommand(cmd, t))) return 'delivery'
   return TESTISH.test(cmd) ? 'diagnostic' : undefined
@@ -354,7 +485,8 @@ function evaluateBash(call) {
     return noted('R5', '行业经验只能用 `lessons.py merge` 写入，不能用 shell 直接改 lessons.jsonl。')
   }
   if (!cwd) return undefined
-  const root = findDeliveryRoot(cwd)
+  // 按命令实际作用的项目定位（cd 到子项目 / 参数里写了子项目路径时，用子项目而不是会话 cwd）
+  const root = resolveCommandRoot(cmd, cwd)
   if (!root) return undefined
   const st = deliveryState(root)
   if (st.version === undefined) return undefined
@@ -571,7 +703,8 @@ export function apply(ctx) {
       const args = exec.arguments ?? {}
       const cwd = args.workdir && cwd0 ? path.resolve(cwd0, String(args.workdir)) : cwd0
       if (!cwd || args.run_in_background === true) return
-      const root = findDeliveryRoot(cwd)
+      // 证据要记到命令实际作用的项目（cd 子项目 / 参数里的子项目路径），而不是会话 cwd 的项目
+      const root = resolveCommandRoot(String(args.command ?? ''), cwd)
       if (!root) return
       const out = textOf(result)
       recordEvidence(root, {

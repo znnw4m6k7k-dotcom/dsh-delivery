@@ -74,16 +74,15 @@ test('R6 不拦诊断运行、不拦别的版本、不拦别的角色之外的�
 })
 
 test('R6 不误伤只是提到命令名的排查命令，也不拦换了参数的测试命令', () => {
-  // 冻结 npm test：grep / echo 只是提到命令名，不能算重跑验收，也不能记成 delivery
+  // 冻结 npm test：grep / echo 只是查看，不算重跑验收，也不产生证据行
   const root = project('v1', ['npm test'])
   assert.equal(record(root, 'npm test'), true)
   assert.equal(bash(root, 'grep "npm test" package.json'), undefined)
   assert.equal(bash(root, 'echo "npm test"'), undefined)
-  assert.equal(recordEvidence(root, { agent: 'main', command: 'grep "npm test" package.json', is_error: false, output: 'package.json:1:"npm test"' }), true)
+  assert.equal(recordEvidence(root, { agent: 'main', command: 'grep "npm test" package.json', is_error: false, output: 'package.json:1:"npm test"' }), false)
   const lines = fs.readFileSync(path.join(root, '.delivery', 'evidence.jsonl'), 'utf8').trim().split('\n').map(JSON.parse)
-  assert.equal(lines.at(-1).purpose, 'diagnostic')
-  assert.equal(lines.at(-1).tests, null)
-  assert.equal(lines.at(-1).count_unconfirmed, true)
+  assert.equal(lines.length, 1)
+  assert.equal(lines[0].purpose, 'delivery')
   // 冻结 node --test：换一个测试文件是不同命令，不按“原样重跑”拦（但仍记 delivery，因为确实在跑测试）
   const root2 = project('v1', ['node --test'])
   assert.equal(record(root2, 'node --test'), true)

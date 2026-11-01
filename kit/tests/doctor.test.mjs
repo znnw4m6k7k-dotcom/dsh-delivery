@@ -15,7 +15,7 @@ const SKILLS = ['delivery-protocol', 'delivery-intake', 'independent-qa', 'indus
 function makeKit() {
   const kit = fs.mkdtempSync(path.join(os.tmpdir(), 'kit-'))
   fs.mkdirSync(path.join(kit, 'bundle'), { recursive: true })
-  fs.writeFileSync(path.join(kit, 'bundle', 'package.json'), JSON.stringify({ name: '@local/delivery-kit', version: '1.4.0' }))
+  fs.writeFileSync(path.join(kit, 'bundle', 'package.json'), JSON.stringify({ name: '@local/delivery-kit', version: '1.4.1' }))
   for (const n of SKILLS) {
     fs.mkdirSync(path.join(kit, 'skills', n), { recursive: true })
     fs.writeFileSync(path.join(kit, 'skills', n, 'SKILL.md'), `---\nname: ${n}\n---\n`)
@@ -58,7 +58,7 @@ test('doctorReport：每行都是“✓/✗ 项目：说明”格式', () => {
 test('doctorReport：版本、守卫、技能、工作目录、项目、经验包逐项检查', () => {
   const { ws, good } = makeWorkspace()
   const text = doctorReport({ kitDir: makeKit(), cwd: ws, home: makeHome() })
-  assert.match(text, /✓ 插件版本：1\.4\.0/)
+  assert.match(text, /✓ 插件版本：1\.4\.1/)
   assert.match(text, /✓ 守卫加载：\/delivery-doctor 能运行/)
   assert.match(text, /✓ 技能目录：5 个交付技能都在/)
   assert.match(text, new RegExp(`✓ 工作目录：${ws}（找到 2 个交付项目）`))

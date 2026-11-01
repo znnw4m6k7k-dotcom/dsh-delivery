@@ -1,7 +1,7 @@
 {
   "name": "@local/delivery-kit",
   "description": "交付模式：交付预设 + 运行时守卫（冻结文件保护、QA 结论保护、版本递增、报告前必须验收、经验包写入保护、测试证据记录）；交付工作台（只读汇总 .delivery/）。",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "private": true,
   "type": "module",
   "icon": "./icon.svg",

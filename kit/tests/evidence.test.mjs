@@ -59,8 +59,14 @@ test('evidencePurpose：冻结命令算验收，其他测试类命令只算排�
   assert.equal(evidencePurpose('cd app && node --test tests/*.test.mjs', ['node --test tests/*.test.mjs']), 'delivery')
   assert.equal(evidencePurpose('node -e "console.log(1)"', ['node --test']), 'diagnostic')
   assert.equal(evidencePurpose('node --check src/a.js', ['node --test']), 'diagnostic')
-  assert.equal(evidencePurpose('echo done', ['node --test']), 'diagnostic')
+  assert.equal(evidencePurpose('python3 -c "print(1)"', ['node --test']), 'diagnostic')
   assert.equal(evidencePurpose('python3 -m pytest -q', ['node --test']), 'diagnostic')
+  assert.equal(evidencePurpose('python3 -m unittest discover -v', ['node --test']), 'diagnostic')
+  assert.equal(evidencePurpose('pytest -q', ['npm test']), 'diagnostic')
+  assert.equal(evidencePurpose('node --test', ['npm test']), 'diagnostic')
+  // 只读查看类命令不记录
+  assert.equal(evidencePurpose('echo done', ['node --test']), undefined)
+  assert.equal(evidencePurpose('cd app && echo done', ['node --test']), undefined)
   assert.equal(evidencePurpose('ls -la', ['node --test']), undefined)
   // 命令里带 # retry_reason 注释不影响判定
   assert.equal(evidencePurpose('# retry_reason: 环境重建后再跑\nnode --test', ['node --test']), 'delivery')
@@ -71,10 +77,13 @@ test('parseTestCounts：先剥掉 ANSI 颜色码再解析', () => {
   assert.deepEqual(parseTestCounts('\x1b[32m3 passed\x1b[0m in 0.01s'), { passed: 3, failed: 0, total: 3 })
 })
 
-test('evidencePurpose：只读排查命令即使提到测试命令名，也只算 diagnostic', () => {
-  assert.equal(evidencePurpose('grep "npm test" package.json', ['npm test']), 'diagnostic')
-  assert.equal(evidencePurpose('cat pytest.ini', ['pytest']), 'diagnostic')
-  assert.equal(evidencePurpose('echo "npm test"', ['npm test']), 'diagnostic')
+test('evidencePurpose：只读查看命令不记录，也永远不算验收', () => {
+  assert.equal(evidencePurpose('grep "npm test" package.json', ['npm test']), undefined)
+  assert.equal(evidencePurpose('cat pytest.ini', ['pytest']), undefined)
+  assert.equal(evidencePurpose('echo "npm test"', ['npm test']), undefined)
+  assert.equal(evidencePurpose('head -20 .delivery/evidence.jsonl', ['pytest']), undefined)
+  assert.equal(evidencePurpose('cd app && grep "pytest" README.md', ['pytest']), undefined)
+  assert.equal(evidencePurpose('rg -n TODO src', ['node --test']), undefined)
   // 命令边界匹配：make build-all 不是 make build；路径里的 pytest_helpers 也不算
   assert.equal(evidencePurpose('make build-all', ['make build']), undefined)
   assert.equal(evidencePurpose('make build', ['make build']), 'delivery')
@@ -111,6 +120,28 @@ test('recordEvidence：排查运行写 purpose=diagnostic 和 count_unconfirmed'
   assert.equal(lines[0].purpose, 'diagnostic')
   assert.equal(lines[0].tests, null)
   assert.equal(lines[0].count_unconfirmed, true)
+})
+
+test('recordEvidence：grep/cat 等只读查看命令不产生证据行', () => {
+  const root = project(F)
+  for (const command of [
+    'grep "node --test" package.json',
+    'cat README.md',
+    'head -5 .delivery/freeze.json',
+    'tail -3 .delivery/evidence.jsonl',
+    'pwd',
+    'which node',
+    'echo "node --test"',
+    'cd app && grep "node --test" package.json',
+  ]) {
+    assert.equal(recordEvidence(root, { agent: 'main', command, is_error: false, output: 'x' }), false, command)
+  }
+  assert.equal(fs.existsSync(path.join(root, '.delivery', 'evidence.jsonl')), false)
+  // 真正跑测试但不在冻结清单里的命令照常记为排查
+  assert.equal(recordEvidence(root, { agent: 'main', command: 'python3 -m pytest -q', is_error: false, output: '1 passed' }), true)
+  const lines = readEvidence(root)
+  assert.equal(lines.length, 1)
+  assert.equal(lines[0].purpose, 'diagnostic')
 })
 
 test('recordEvidence：解析不出计数时写 tests=null + count_unconfirmed=true', () => {
