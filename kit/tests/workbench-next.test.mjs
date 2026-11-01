@@ -152,6 +152,7 @@ test('渲染：顶部一句话、返工轮数，返工 3 轮及以上标红并�
   write(root, 'freeze.json', freeze('v4'))
   const s = readWorkbench(root)
   assert.equal(s.rework, 3)
+  assert.equal(s.reworkAlert, true)
   const html = renderWorkbench(s)
   assert.match(html, /下一步：等 QA 验收 v4（返工 3 轮） 建议停下来和用户确认范围/)
   assert.match(html, /<div class="next alert">/)
@@ -168,6 +169,102 @@ test('渲染：返工少于 3 轮时不标红', () => {
   assert.doesNotMatch(html, /next alert/)
   assert.match(html, /（返工 1 轮）/)
   assert.doesNotMatch(html, /建议停下来和用户确认范围/)
+})
+
+test('已交付并复盘完成（next.who=none）时返工轮数照显，但不标红、不提示确认范围', async () => {
+  const { workbenchCommand } = await import('../bundle/index.js')
+  const root = project()
+  write(root, 'contract.json', contract(true))
+  write(root, 'qa/v1.json', { release_status: 'fail' })
+  write(root, 'qa/v2.json', { release_status: 'fail' })
+  write(root, 'qa/v3.json', { release_status: 'fail' })
+  write(root, 'qa/v4.json', { release_status: 'pass', requirements: [{ requirement_id: 'A1', status: 'pass' }] })
+  write(root, 'freeze.json', freeze('v4'))
+  write(root, 'report.md', '# 报告')
+  write(root, 'retro/candidates.jsonl', JSON.stringify({ review: 'approved' }) + '\n')
+  const s = readWorkbench(root)
+  assert.deepEqual(s.next, { who: 'none', text: '交付和复盘都完成了，没有在等谁' })
+  assert.equal(s.rework, 3)
+  assert.equal(s.reworkAlert, false)
+
+  // HTML 工作台：不标红、不出现提示，但返工轮数照常显示
+  const html = renderWorkbench(s)
+  assert.match(html, /<div class="next">/)
+  assert.match(html, /（返工 3 轮）/)
+  assert.doesNotMatch(html, /next alert/)
+  assert.doesNotMatch(html, /建议停下来和用户确认范围/)
+
+  // 命令摘要：同样只显示轮数
+  const r = await workbenchCommand(root, '')
+  assert.match(r.text, /下一步：交付和复盘都完成了，没有在等谁（返工 3 轮）\n/)
+  assert.doesNotMatch(r.text, /建议停下来和用户确认范围/)
+  const j = JSON.parse((await workbenchCommand(root, 'json')).text)
+  assert.equal(j.reworkAlert, false)
+
+  // 面板（client.js）也必须以 reworkAlert 为准，不能只看 rework
+  const clientSrc = fs.readFileSync(new URL('../bundle/client.js', import.meta.url), 'utf8')
+  assert.match(clientSrc, /s\.reworkAlert/)
+})
+
+test('当前版本 QA 不通过且返工 ≥3 仍标红（只放宽 QA 通过之后）', () => {
+  const root = project()
+  write(root, 'contract.json', contract(true))
+  write(root, 'qa/v1.json', { release_status: 'fail' })
+  write(root, 'qa/v2.json', { release_status: 'fail' })
+  write(root, 'qa/v3.json', { release_status: 'fail' })
+  write(root, 'qa/v4.json', { release_status: 'fail' })
+  write(root, 'freeze.json', freeze('v4'))
+  const s = readWorkbench(root)
+  assert.equal(s.rework, 4)
+  assert.deepEqual(s.next, { who: 'agent', text: 'Agent 在修第 4 轮' })
+  assert.equal(s.reworkAlert, true)
+  assert.match(renderWorkbench(s), /<div class="next alert">/)
+  assert.match(renderWorkbench(s), /建议停下来和用户确认范围/)
+})
+
+test('QA 通过后即使返工 ≥3 也不标红（写报告 / 等复盘阶段）', async () => {
+  const { workbenchCommand } = await import('../bundle/index.js')
+  const root = project()
+  write(root, 'contract.json', contract(true))
+  write(root, 'qa/v1.json', { release_status: 'fail' })
+  write(root, 'qa/v2.json', { release_status: 'fail' })
+  write(root, 'qa/v3.json', { release_status: 'fail' })
+  write(root, 'qa/v4.json', { release_status: 'pass', requirements: [{ requirement_id: 'A1', status: 'pass' }] })
+  write(root, 'freeze.json', freeze('v4'))
+
+  // 1) QA 已通过、报告还没写：Agent 在写交付报告
+  const s1 = readWorkbench(root)
+  assert.deepEqual(s1.next, { who: 'agent', text: 'Agent 在写交付报告' })
+  assert.equal(s1.rework, 3)
+  assert.equal(s1.reworkAlert, false)
+  assert.doesNotMatch(renderWorkbench(s1), /next alert/)
+  assert.doesNotMatch(renderWorkbench(s1), /建议停下来和用户确认范围/)
+
+  // 2) 报告已写、还没复盘：等用户做复盘
+  write(root, 'report.md', '# 报告')
+  const s2 = readWorkbench(root)
+  assert.deepEqual(s2.next, { who: 'user', text: '验收通过，可以做复盘了' })
+  assert.equal(s2.reworkAlert, false)
+  const html2 = renderWorkbench(s2)
+  assert.match(html2, /<div class="next">/)
+  assert.match(html2, /（返工 3 轮）/) // 轮数照常显示
+  assert.doesNotMatch(html2, /next alert/)
+  assert.doesNotMatch(html2, /建议停下来和用户确认范围/)
+  const r2 = await workbenchCommand(root, '')
+  assert.match(r2.text, /下一步：验收通过，可以做复盘了（返工 3 轮）\n/)
+  assert.doesNotMatch(r2.text, /建议停下来和用户确认范围/)
+
+  // 3) 复盘候选待确认：等用户逐条确认
+  write(root, 'retro/candidates.jsonl', JSON.stringify({ review: 'pending' }) + '\n')
+  const s3 = readWorkbench(root)
+  assert.deepEqual(s3.next, { who: 'user', text: '等你逐条确认复盘经验' })
+  assert.equal(s3.reworkAlert, false)
+  assert.doesNotMatch(renderWorkbench(s3), /next alert/)
+
+  // 面板（client.js）的兜底判断也必须是“当前版本 QA 未通过”，不能退回按 next.who 判断
+  const clientSrc = fs.readFileSync(new URL('../bundle/client.js', import.meta.url), 'utf8')
+  assert.match(clientSrc, /s\.qa\?\.verdict !== 'pass'/)
+  assert.doesNotMatch(clientSrc, /who !== 'none'/)
 })
 
 test('/delivery-workbench 摘要里带下一步和测试计数', async () => {

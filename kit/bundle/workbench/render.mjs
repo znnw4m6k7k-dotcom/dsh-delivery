@@ -29,10 +29,12 @@ export function renderWorkbench(s, { now = new Date() } = {}) {
   const cv = s.evidence.currentVersion
   const testText = cv.unconfirmed === false ? `${cv.passed ?? 0}/${cv.total ?? 0}` : '数量未确认'
   const rework = s.rework ?? 0
-  // 顶部一句话：现在卡在哪、在等谁；返工 3 轮及以上标红并提示停下来确认范围
-  const nextLine = `<div class="next${rework >= 3 ? ' alert' : ''}">下一步：${esc(s.next?.text ?? '')}${
+  // 顶部一句话：现在卡在哪、在等谁。只有当前版本还没拿到 QA 通过、且返工 3 轮及以上时才标红并提示；
+  // QA 通过之后（写报告、等复盘、已交付、已复盘）只显示返工轮数，不标红、不提示。
+  const alert = s.reworkAlert ?? (rework >= 3 && s.qa?.verdict !== 'pass')
+  const nextLine = `<div class="next${alert ? ' alert' : ''}">下一步：${esc(s.next?.text ?? '')}${
     rework ? `（返工 ${rework} 轮）` : ''
-  }${rework >= 3 ? ' 建议停下来和用户确认范围' : ''}</div>`
+  }${alert ? ' 建议停下来和用户确认范围' : ''}</div>`
   const head = `
 <header>
   <h1>${esc(s.name)} <small>交付工作台</small></h1>

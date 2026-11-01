@@ -208,6 +208,9 @@ export function readWorkbench(start, { evidenceLimit = 20 } = {}) {
   }
   out.stage = inferStage(out)
   out.next = inferNext(out, rework)
+  // 只有当前冻结版本还没拿到 QA 通过（还在等验收或返工中）且返工达到 3 轮时，才提示“停下来确认范围”。
+  // QA 一旦通过（写报告、等复盘、已交付、已复盘）就不再标红、不再提示，返工轮数只做展示。
+  out.reworkAlert = rework >= 3 && out.qa.verdict !== 'pass'
   return out
 }
 

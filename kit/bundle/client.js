@@ -73,8 +73,9 @@ window.__ModuleLoader__.load({
       const cv = s.evidence.currentVersion
       const testText = cv.unconfirmed === false ? `${cv.passed ?? 0}/${cv.total ?? 0}` : t('testUnknown')
       const rework = s.rework ?? 0
-      const alert = rework >= 3
-      // 顶部一句话：现在卡在哪、在等谁；返工 3 轮及以上标红提示停下来确认范围
+      // 只有当前版本还没拿到 QA 通过且返工 3 轮及以上才标红；QA 通过之后只显示轮数，不标红、不提示
+      const alert = s.reworkAlert ?? (rework >= 3 && s.qa?.verdict !== 'pass')
+      // 顶部一句话：现在卡在哪、在等谁
       const nextLine = h('div', { style: { ...css.next, ...(alert ? { color: TONE.bad, borderColor: TONE.bad, fontWeight: 600 } : {}) } },
         t('next') + '：' + (s.next?.text ?? ''),
         rework > 0 ? '（' + t('rework', { n: String(rework) }) + '）' : '',

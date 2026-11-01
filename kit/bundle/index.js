@@ -433,9 +433,11 @@ export async function workbenchCommand(cwd, rawInput) {
   if (!s.found) return { kind: 'success', text: `当前目录（${cwd}）还没有 .delivery/，这个项目没有进入交付流程。` }
   const pass = s.acceptance.filter((r) => r.status === 'pass').length
   const changed = s.freeze.files.filter((f) => f.status === 'modified' || f.status === 'missing').length
+  // 只有当前版本还没拿到 QA 通过且返工 3 轮及以上才提示停下来确认范围；QA 通过之后返工轮数照常显示
+  const reworkAlert = s.reworkAlert ?? ((s.rework ?? 0) >= 3 && s.qa?.verdict !== 'pass')
   const lines = [
     `交付工作台：${s.name}`,
-    `下一步：${s.next?.text ?? ''}${s.rework ? `（返工 ${s.rework} 轮）` : ''}${s.rework >= 3 ? ' 建议停下来和用户确认范围' : ''}`,
+    `下一步：${s.next?.text ?? ''}${s.rework ? `（返工 ${s.rework} 轮）` : ''}${reworkAlert ? ' 建议停下来和用户确认范围' : ''}`,
     `阶段：${s.stage}`,
     `冻结版本：${s.freeze.version ?? '未冻结'}${changed ? `（${changed} 个冻结文件被改或丢失）` : ''}`,
     `QA：${s.qa.exists ? s.qa.release_status || s.qa.verdict : '未验收'}`,
