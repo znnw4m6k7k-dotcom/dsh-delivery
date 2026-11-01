@@ -170,3 +170,38 @@ export function readWorkbench(start, { evidenceLimit = 20 } = {}) {
   out.stage = inferStage(out)
   return out
 }
+
+function lastTouched(dir, depth = 2) {
+  let t = 0
+  try {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name)
+      if (e.isDirectory()) { if (depth > 0) t = Math.max(t, lastTouched(p, depth - 1)) } else {
+        try { t = Math.max(t, fs.statSync(p).mtimeMs) } catch {}
+      }
+    }
+  } catch {}
+  return t
+}
+
+/**
+ * 一个工作区里可能有多个交付项目：向上找到的那个，加上 start 的直接子目录里带 .delivery/ 的。
+ * 按 .delivery/ 里最近修改时间倒序，第一个是默认项目。
+ */
+export function listDeliveryProjects(start) {
+  const base = path.resolve(start)
+  const roots = new Set()
+  const up = findDeliveryRoot(base)
+  if (up) roots.add(up)
+  try {
+    for (const e of fs.readdirSync(base, { withFileTypes: true })) {
+      if (!e.isDirectory() || e.name.startsWith('.') || e.name === 'node_modules') continue
+      const r = path.join(base, e.name)
+      try { if (fs.statSync(path.join(r, '.delivery')).isDirectory()) roots.add(r) } catch {}
+    }
+  } catch {}
+  return [...roots].map((root) => {
+    const c = readJson(path.join(root, '.delivery', 'contract.json'))
+    return { root, name: path.basename(root), goal: typeof c?.goal === 'string' ? c.goal : '', touched: lastTouched(path.join(root, '.delivery')) }
+  }).sort((a, b) => b.touched - a.touched)
+}

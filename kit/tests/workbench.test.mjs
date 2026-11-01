@@ -174,3 +174,27 @@ test('面板 client.js 不再通过命令取数', () => {
   assert.doesNotMatch(src, /commands\.execute/)
   assert.match(src, /api\/deliverykit\.workbench/)
 })
+
+test('同一工作区多个交付项目：默认最近修改的，可切换，不接受候选外路径', async () => {
+  const { workbenchResponse } = await import('../bundle/index.js')
+  const { listDeliveryProjects } = await import('../bundle/workbench/state.mjs')
+  const ws = project() // 工作区根本身是一个项目（奶茶店）
+  const sub = path.join(ws, '健身房')
+  fs.mkdirSync(path.join(sub, '.delivery'), { recursive: true })
+  fs.writeFileSync(path.join(sub, '.delivery', 'contract.json'), JSON.stringify({ goal: '健身房开业方案', acceptance: [] }))
+  const old = new Date(Date.now() - 3600e3)
+  for (const f of fs.readdirSync(path.join(ws, '.delivery'), { recursive: true })) fs.utimesSync(path.join(ws, '.delivery', f), old, old)
+
+  const list = listDeliveryProjects(ws)
+  assert.deepEqual(list.map((p) => p.name), ['健身房', path.basename(ws)])
+
+  const ctx = { get: (n) => (n === 'sessions' ? { get: () => ({}) } : n === 'workingDirectory' ? { get: () => ws } : undefined) }
+  const call = async (q) => (await workbenchResponse(ctx, new Request('http://x/api/deliverykit.workbench?sessionId=s' + q))).json()
+  const a = await call('')
+  assert.equal(a.contract.goal, '健身房开业方案')
+  assert.equal(a.projects.length, 2)
+  const b = await call('&project=' + encodeURIComponent(ws))
+  assert.equal(b.contract.goal, '奶茶店开业方案')
+  const c = await call('&project=' + encodeURIComponent('/etc'))
+  assert.equal(c.contract.goal, '健身房开业方案')
+})

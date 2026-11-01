@@ -240,8 +240,13 @@ export async function workbenchResponse(ctx, request) {
     if (!sessionId) return json({ error: 'missing sessionId' }, 400)
     const cwd = await sessionCwd(ctx, sessionId)
     if (!cwd) return json({ error: 'session working directory not found' }, 404)
-    const { readWorkbench } = await import('./workbench/state.mjs')
-    return json(readWorkbench(cwd))
+    const { readWorkbench, listDeliveryProjects } = await import('./workbench/state.mjs')
+    const projects = listDeliveryProjects(cwd)
+    // 只允许在候选项目之间切换，不接受任意路径
+    const asked = new URL(request.url).searchParams.get('project')
+    const pick = projects.find((p) => p.root === asked) ?? projects[0]
+    const s = readWorkbench(pick ? pick.root : cwd)
+    return json({ ...s, projects: projects.map(({ root, name, goal }) => ({ root, name, goal })) })
   } catch (e) {
     return json({ error: String(e?.message ?? e) }, 500)
   }

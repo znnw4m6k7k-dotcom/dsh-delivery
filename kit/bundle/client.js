@@ -9,7 +9,7 @@ window.__ModuleLoader__.load({
     const NS = 'local.deliveryKit.workbench'
 
     const zh = {
-      button: '交付工作台', title: '交付工作台', refresh: '刷新', close: '关闭', loading: '读取中…',
+      button: '交付工作台', title: '交付工作台', project: '项目', refresh: '刷新', close: '关闭', loading: '读取中…',
       none: '这个会话的工作目录里还没有 .delivery/，项目还没有进入交付流程。',
       failed: '读取失败：{reason}', stage: '阶段', version: '冻结版本', qa: 'QA 结论', passed: '验收通过',
       contract: '合同', confirmed: '用户已确认', unconfirmed: '用户未确认', goal: '目标', industry: '行业',
@@ -24,7 +24,7 @@ window.__ModuleLoader__.load({
       'e.ok': '正常', 'e.err': '出错',
     }
     const en = {
-      button: 'Delivery workbench', title: 'Delivery workbench', refresh: 'Refresh', close: 'Close', loading: 'Loading…',
+      button: 'Delivery workbench', title: 'Delivery workbench', project: 'Project', refresh: 'Refresh', close: 'Close', loading: 'Loading…',
       none: 'No .delivery/ in this session\'s working directory yet.',
       failed: 'Failed to read: {reason}', stage: 'Stage', version: 'Frozen version', qa: 'QA verdict', passed: 'Accepted',
       contract: 'Contract', confirmed: 'Confirmed by user', unconfirmed: 'Not confirmed', goal: 'Goal', industry: 'Industry',
@@ -55,6 +55,7 @@ window.__ModuleLoader__.load({
       kpi: { background: 'var(--dsw-alias-bg-layer-1)', borderRadius: 8, padding: '8px 10px' },
       row: { display: 'flex', gap: 8, padding: '6px 0', borderTop: '1px solid var(--dsw-alias-border-l2)' },
       note: { fontSize: 12, color: 'var(--dsw-alias-label-secondary)' },
+      select: { flex: 1, minWidth: 0, background: 'var(--dsw-alias-bg-layer-1, Field)', color: 'inherit', border: '1px solid var(--dsw-alias-border-l1)', borderRadius: 6, padding: '2px 6px', fontSize: 12 },
       code: { fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 12, wordBreak: 'break-all' },
     }
     const Pill = ({ tone, children }) => h('span', { style: { color: TONE[tone] ?? TONE.mute, border: '1px solid currentColor', borderRadius: 999, padding: '0 8px', fontSize: 11, whiteSpace: 'nowrap', flex: 'none' } }, children)
@@ -100,8 +101,9 @@ window.__ModuleLoader__.load({
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'delivery-kit: workbench dictionaries')
 
-        async function load(sessionId, signal) {
-          const res = await fetch('api/deliverykit.workbench?sessionId=' + encodeURIComponent(sessionId), { signal, cache: 'no-store' })
+        async function load(sessionId, project, signal) {
+          const q = 'sessionId=' + encodeURIComponent(sessionId) + (project ? '&project=' + encodeURIComponent(project) : '')
+          const res = await fetch('api/deliverykit.workbench?' + q, { signal, cache: 'no-store' })
           const body = await res.json().catch(() => undefined)
           if (!res.ok) throw new Error(body?.error ?? `HTTP ${res.status}`)
           if (!body || typeof body.found !== 'boolean') throw new Error('unexpected response')
@@ -119,15 +121,17 @@ window.__ModuleLoader__.load({
           const [open, setOpen] = React.useState(false)
           const [state, setState] = React.useState({ loading: false })
           const [tick, setTick] = React.useState(0)
+          const [project, setProject] = React.useState(undefined)
           React.useEffect(() => {
             if (!open || !sessionId) return undefined
             const ac = new AbortController()
             setState((prev) => ({ ...prev, loading: true, error: undefined }))
-            load(sessionId, ac.signal).then(
+            load(sessionId, project, ac.signal).then(
               (s) => { if (!ac.signal.aborted) setState({ loading: false, s }) },
               (e) => { if (!ac.signal.aborted) setState({ loading: false, error: String(e?.message ?? e) }) })
             return () => ac.abort()
-          }, [open, sessionId, tick])
+          }, [open, sessionId, project, tick])
+          const projects = state.s?.projects ?? []
           const refresh = () => setTick((n) => n + 1)
           React.useEffect(() => {
             if (!open) return undefined
@@ -142,6 +146,10 @@ window.__ModuleLoader__.load({
                 h('div', { style: { fontWeight: 600, flex: 1 } }, t('title'), state.s?.name ? ` · ${state.s.name}` : ''),
                 h('button', { type: 'button', style: css.button, onClick: refresh }, t('refresh')),
                 h('button', { type: 'button', style: css.button, onClick: () => setOpen(false) }, t('close'))),
+              projects.length > 1 && h('div', { style: { ...css.head, paddingTop: 8, paddingBottom: 8 } },
+                h('span', { style: css.note }, t('project')),
+                h('select', { value: state.s?.root ?? '', onChange: (ev) => setProject(ev.target.value), style: css.select },
+                  projects.map((p) => h('option', { key: p.root, value: p.root }, p.goal ? `${p.name} · ${p.goal.slice(0, 24)}` : p.name)))),
               h('div', { style: css.body },
                 state.error ? h('p', { style: { color: TONE.bad } }, t('failed', { reason: state.error }))
                   : state.s ? h(Boundary, { key: tick }, state.loading && h('p', { style: css.note }, t('loading')), h(Content, { s: state.s, t }))
