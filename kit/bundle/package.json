@@ -1,0 +1,24 @@
+{
+  "name": "@local/delivery-kit",
+  "description": "交付模式：交付预设 + 运行时守卫（冻结文件保护、QA 结论保护、版本递增、报告前必须验收、经验包写入保护、测试证据记录）。",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "icon": "./icon.svg",
+  "exports": {
+    ".": "./index.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

@@ -1,0 +1,1 @@
+{"meta": {"title": "Delivery Mode", "description": "Adds a Delivery agent preset and a runtime guard: frozen files stay untouched until QA, only QA writes verdicts, versions only increase, no report before QA, lessons only via confirmed merge, and test runs are logged as evidence."}}
