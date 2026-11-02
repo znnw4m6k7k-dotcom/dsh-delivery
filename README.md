@@ -6,6 +6,7 @@
 - `kit/skills/`：5 个技能（唯一来源）。
 - `kit/bundle/workbench/`：交付工作台，`node kit/bundle/workbench/cli.mjs <项目目录>` 生成 `.delivery/workbench.html`。
 - `kit/tests/`：`node --test kit/tests/*.test.mjs`。
+- `claude-skill/`：同一套交付方法的 **Claude 技能版**（omni-delivery），claude.ai 和 Claude Code 通用，见 `claude-skill/安装说明.md`；测试 `python3 -m unittest discover -s claude-skill/tests`。
 - `docs/Mac验证清单.md`：只能在装了 DSH 的 Mac 上做的验证步骤。
 - `docs/`：技术准则、交接说明、OmniAgent 分析资料。
 
