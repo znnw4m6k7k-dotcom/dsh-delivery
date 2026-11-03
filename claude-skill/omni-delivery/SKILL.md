@@ -46,7 +46,7 @@ python3 $SKILL/scripts/delivery.py check-contract
 `confirmed_by_user: true` 只能在用户明确确认后写。用户说"别问了直接做"：停止提问，剩余缺口全部写进 `assumptions`。
 
 ### 第 2 步：计划
-用 todo 记录计划，每项标阶段：investigation / implementation / verification。写清：规模、是否需要调研（不需要写理由）、步骤、验证方式（`independent` 或 `artifact`）、测试命令、引用了哪些行业经验。
+用 todo 记录计划，每项标阶段：investigation / implementation / verification。写清：规模、是否需要调研（不需要写理由）、步骤、验证方式（`independent` 或 `artifact`）和验收深度（quick / standard / deep）、测试命令、引用了哪些行业经验。
 - 简单任务自己做；复杂任务按独立模块委派子 Agent，规则见 [references/delegation.md](references/delegation.md)。
 - 调研最多 3 个并行；**写文件的工作必须串行**。
 - 子 Agent 只收到显式依赖的结果，其他必要信息写进任务说明。
@@ -67,7 +67,7 @@ python3 $SKILL/scripts/delivery.py freeze <交付文件…> --test "python3 -m u
 脚本自动：算 sha256、取比所有旧版本都大的新版本号（v1、v2…）、拒绝 `node -e`/`echo`/`true`/`node --check` 这类假测试命令、拒绝覆盖已验收版本。**冻结后再改文件就必须重新冻结、重新验收。** freeze.json 里不得写任何验收结论。
 
 ### 第 6 步：独立验收
-- 代码/应用：`independent`。派**一个** QA 子 Agent，任务说明用 [references/independent-qa.md](references/independent-qa.md) 里的模板。QA 用 `delivery.py run-test` 取证，把结论写到 `.delivery/qa/<版本>.json`，再用 `delivery.py check-qa` 校验。
+- 代码/应用：`independent`。派**一个** QA 子 Agent，任务说明用 [references/independent-qa.md](references/independent-qa.md) 里的模板。派 QA 时写明验收深度：默认 `standard`；纯文档、小改动和返工复验（v2 起）用 `quick`；用户要求或合规等级不是 internet 时用 `deep`。返工复验只验失败条目和改动涉及的条目。QA 用 `delivery.py run-test` 取证，把结论写到 `.delivery/qa/<版本>.json`，再用 `delivery.py check-qa` 校验。
 - 纯 .md/.txt 文档：可以用 `artifact`（逐条对照文件原文核对），但必须先征得用户明确同意，且不能用它绕过已失败的 QA。
 - 没有子 Agent 的环境：按同一份 QA 规则做角色切换式验收，结论里加 `"independence": "self"`，报告里写明"非独立验收"。
 - **同一冻结版本同时只派一个 QA。** 多份结论冲突时以当前冻结版本为准；同版本取更严格的那份并逐条核实。
