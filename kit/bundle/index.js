@@ -358,7 +358,11 @@ export function readEvidence(root) {
 export function deliveryState(root) {
   const freeze = readJson(path.join(root, '.delivery', 'freeze.json'))
   const version = freeze?.version !== undefined ? String(freeze.version) : undefined
-  const qaFile = version ? path.join(root, '.delivery', 'qa', `${version}.json`) : undefined
+  // QA 结论文件：<版本>.json；兼容 QA 写成 qa-<版本>.json 的情况（实机出现过，导致守卫以为还没验收）
+  const qaFile = version
+    ? [`${version}.json`, `qa-${version}.json`].map((n) => path.join(root, '.delivery', 'qa', n)).find((p) => fs.existsSync(p)) ??
+      path.join(root, '.delivery', 'qa', `${version}.json`)
+    : undefined
   const qa = qaFile ? readJson(qaFile) : undefined
   return {
     freeze,
@@ -477,11 +481,26 @@ export function evaluate(call) {
   return undefined
 }
 
-const WRITEY = /(>>?|\btee\b|\bsed\s+-i|\bmv\b|\bcp\b|\brm\b|\btruncate\b|\bdd\b)/
+// 判断 bash 命令会不会写文件。
+// 只看 shell 层：先去掉引号里的内容和 heredoc 正文，避免把 `node -e '…=>…'`、`cp=require(…)`
+// 这类脚本代码误当成重定向/cp 命令（实机误拦过 QA 的只读核对）。脚本代码里的写操作另用 CODE_WRITE 识别。
+const SHELL_WRITE = /(?:^|[\s;&|(])(?:\d?>>?(?![&>])(?!\s*\/dev\/null)|&>)|\btee\b|\bsed\s+(?:-[a-zA-Z]*\s+)*-i|\bmv\b|\bcp\b|\brm\b|\btruncate\b|\bdd\b|\bln\b|\binstall\b/
+const CODE_WRITE = /\b(?:writeFileSync|appendFileSync|writeFile|appendFile|createWriteStream|renameSync|unlinkSync|rmSync|copyFileSync|cpSync|write_text|write_bytes|shutil\.(?:copy\w*|move|rmtree)|os\.(?:remove|unlink|rename|replace))\b|\bopen\([^)]*,\s*['"][wax]/
+export function shellSkeleton(cmd) {
+  let s = String(cmd ?? '')
+  // heredoc：只保留 << 那一行，去掉正文
+  s = s.replace(/(<<-?\s*(['"]?)([A-Za-z_][\w]*)\2[^\n]*)\n[\s\S]*?\n[ \t]*\3[ \t]*(?=\n|$)/g, '$1')
+  // 引号里的内容
+  s = s.replace(/'[^']*'/g, "''").replace(/"(?:\\.|[^"\\])*"/g, '""')
+  return s
+}
+export function looksWrite(cmd) {
+  return SHELL_WRITE.test(shellSkeleton(cmd)) || CODE_WRITE.test(String(cmd ?? ''))
+}
 function evaluateBash(call) {
   const cmd = String(call.args?.command ?? '')
   const cwd = call.args?.workdir ? path.resolve(call.cwd ?? '/', String(call.args.workdir)) : call.cwd
-  if (/lessons\.jsonl/.test(cmd) && WRITEY.test(cmd) && !/lessons\.py/.test(cmd)) {
+  if (/lessons\.jsonl/.test(cmd) && looksWrite(cmd) && !/lessons\.py/.test(cmd)) {
     return noted('R5', '行业经验只能用 `lessons.py merge` 写入，不能用 shell 直接改 lessons.jsonl。')
   }
   if (!cwd) return undefined
@@ -508,12 +527,12 @@ function evaluateBash(call) {
   }
 
   // R3 加强（bash）：等验收期间子 Agent 只能写 .delivery/qa/，不能改 .delivery/ 里的其他文件
-  if (call.isRoot === false && !st.qaExists && WRITEY.test(cmd) &&
+  if (call.isRoot === false && !st.qaExists && looksWrite(cmd) &&
     /\.delivery(?:[\\/]|$)/.test(cmd) && !/\.delivery[\\/]qa(?:[\\/]|$)/.test(cmd)) {
     return noted('R3QA', `当前冻结版本 ${st.version} 正在等待独立验收，QA 子 Agent 只能写 .delivery/qa/ 下的验收结论，不能改 .delivery/ 里的其他文件。`)
   }
 
-  if (st.qaExists || !WRITEY.test(cmd)) return undefined
+  if (st.qaExists || !looksWrite(cmd)) return undefined
   for (const f of st.files) {
     const rel = path.relative(root, f)
     if (rel && (cmd.includes(rel) || cmd.includes(f))) {
