@@ -17,7 +17,22 @@ import sys
 
 QA_KEYS = ["qa", "release_status", "requirements", "verdict", "qa_result", "qa_status"]
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
-WRITEY = re.compile(r"(>>?|\btee\b|\bsed\s+-i|\bmv\b|\bcp\b|\brm\b|\btruncate\b|\bdd\b|\bperl\s+-[a-z]*i)")
+# 判断 bash 命令会不会写文件：先去掉引号内容和 heredoc 正文，只看 shell 层的重定向和写命令，
+# 避免把 node -e '…=>…'、cp=require(…) 这类脚本代码误当成写操作；脚本里的写文件调用另用 CODE_WRITE 识别。
+SHELL_WRITE = re.compile(r"(?:^|[\s;&|(])(?:\d?>>?(?![&>])(?!\s*/dev/null)|&>)|\btee\b|\bsed\s+(?:-[a-zA-Z]*\s+)*-i|\bmv\b|\bcp\b|\brm\b|\btruncate\b|\bdd\b|\bln\b|\binstall\b|\bperl\s+-[a-z]*i")
+CODE_WRITE = re.compile(r"\b(?:writeFileSync|appendFileSync|writeFile|appendFile|createWriteStream|renameSync|unlinkSync|rmSync|copyFileSync|cpSync|write_text|write_bytes|shutil\.(?:copy\w*|move|rmtree)|os\.(?:remove|unlink|rename|replace))\b|\bopen\([^)]*,\s*['\"][wax]")
+HEREDOC = re.compile(r"(<<-?\s*(['\"]?)([A-Za-z_]\w*)\2[^\n]*)\n[\s\S]*?\n[ \t]*\3[ \t]*(?=\n|$)")
+
+
+def shell_skeleton(cmd):
+    s = HEREDOC.sub(r"\1", str(cmd or ""))
+    s = re.sub(r"'[^']*'", "''", s)
+    s = re.sub(r'"(?:\\.|[^"\\])*"', '""', s)
+    return s
+
+
+def looks_write(cmd):
+    return bool(SHELL_WRITE.search(shell_skeleton(cmd)) or CODE_WRITE.search(str(cmd or "")))
 
 
 def read_json(p):
@@ -48,7 +63,8 @@ def find_root(start):
 def state(root):
     fz = read_json(os.path.join(root, ".delivery", "freeze.json")) or {}
     ver = fz.get("version")
-    qa_exists = bool(ver) and os.path.exists(os.path.join(root, ".delivery", "qa", f"{ver}.json"))
+    qa_dir = os.path.join(root, ".delivery", "qa")
+    qa_exists = bool(ver) and any(os.path.exists(os.path.join(qa_dir, n)) for n in (f"{ver}.json", f"qa-{ver}.json"))
     files = []
     for f in fz.get("files", []) or []:
         p = f.get("path") if isinstance(f, dict) else f
@@ -134,7 +150,7 @@ def evaluate(tool, ti, cwd, is_root):
 
 def evaluate_bash(ti, cwd):
     cmd = str(ti.get("command", ""))
-    if "lessons.jsonl" in cmd and WRITEY.search(cmd) and "lessons.py" not in cmd:
+    if "lessons.jsonl" in cmd and looks_write(cmd) and "lessons.py" not in cmd:
         return "行业经验只能用 `lessons.py merge` 写入，不能用 shell 直接改 lessons.jsonl。"
     if not cwd:
         return None
@@ -142,7 +158,7 @@ def evaluate_bash(ti, cwd):
     if not root:
         return None
     ver, qa_exists, files = state(root)
-    if not ver or qa_exists or not WRITEY.search(cmd):
+    if not ver or qa_exists or not looks_write(cmd):
         return None
     for f in files:
         rel = os.path.relpath(f, root)

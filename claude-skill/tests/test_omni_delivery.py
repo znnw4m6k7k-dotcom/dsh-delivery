@@ -93,6 +93,23 @@ class DeliveryFlow(unittest.TestCase):
         self.assertEqual(run([DELIVERY, "check-report"], self.d).returncode, 1)  # v2 未验收
 
 
+class GuardWriteDetect(unittest.TestCase):
+    def test_quoted_script_is_not_write(self):
+        sys.path.insert(0, os.path.dirname(GUARD))
+        import guard as g
+        qa_read = """node -e '
+const fs=require("fs"),cp=require("crypto");
+for (const f of JSON.parse(fs.readFileSync(".delivery/freeze.json","utf8")).files) console.log(f.path, 1 > 0)
+'"""
+        self.assertFalse(g.looks_write(qa_read))
+        self.assertFalse(g.looks_write("node --test 2>&1 | tail -5"))
+        self.assertFalse(g.looks_write("python3 - <<'EOF'\nprint(1 > 0)\nEOF"))
+        self.assertTrue(g.looks_write("echo x >> calc.py"))
+        self.assertTrue(g.looks_write("sed -i '' 's/a/b/' calc.py"))
+        self.assertTrue(g.looks_write("python3 - <<'EOF'\nopen('calc.py','w').write('x')\nEOF"))
+        self.assertTrue(g.looks_write("""node -e 'require("fs").writeFileSync("calc.py","")'"""))
+
+
 class ParseCounts(unittest.TestCase):
     def test_runners(self):
         sys.path.insert(0, os.path.dirname(DELIVERY))
