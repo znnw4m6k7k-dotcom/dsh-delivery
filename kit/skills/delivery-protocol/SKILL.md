@@ -24,7 +24,7 @@ whenToUse: 用户要求做出一个可交付的成果（项目、功能、报告
 验收条目必须经用户确认（`confirmed_by_user: true`）后才算合同。
 
 ## 第 2 步：计划
-用 todo 记录计划，每项标明阶段：investigation / implementation / verification。说明：规模、是否需要调研（不需要就写理由）、步骤、验证方式（independent 或 artifact）、要用的测试命令、引用了哪些行业经验。
+用 todo 记录计划，每项标明阶段：investigation / implementation / verification。说明：规模、是否需要调研（不需要就写理由）、步骤、验证方式（independent 或 artifact）和验收深度（quick / standard / deep）、要用的测试命令、引用了哪些行业经验。
 - 简单任务自己做；复杂任务按独立模块委派子 Agent，写清文件边界和验收要求。
 - 调研最多 3 个并行；**写文件的工作必须串行**。
 - 子 Agent 只收到显式依赖的结果，其他必要信息写进任务说明。
@@ -47,6 +47,7 @@ whenToUse: 用户要求做出一个可交付的成果（项目、功能、报告
 
 ## 第 6 步：独立验收
 - 代码/应用：`verification=independent`。准备好**含真实断言**的测试入口（`node --test`、`python3 -m unittest`、`go test ./...` 等），再派 QA 子 Agent，提示词用 `independent-qa` 技能。
+- 派 QA 时写明验收深度 `qa_depth`：默认 `standard`；纯文档、小改动和返工复验（v2 起）用 `quick`；用户要求、合规等级不是 internet 时用 `deep`。细则见 `independent-qa` 技能。返工复验只验失败条目和改动涉及的条目，不从头再验一遍。
 - 纯 .md/.txt 文档：可用 `verification=artifact`（文件检查），但必须先征得用户明确同意，且不能用它绕过已经失败的 QA。
 - `node -e`、`node --check`、`echo`、打印成功 都不算验收，只能用于诊断。
 - **同一冻结版本同一时间只派一个 QA。** 不要并行派多个 QA 去验同一版本（会互相抢 LibreOffice、浏览器等单实例工具，也会出现结论冲突）。需要多个视角时，写进同一个 QA 的任务说明里。
@@ -67,6 +68,9 @@ whenToUse: 用户要求做出一个可交付的成果（项目、功能、报告
 用户问“进度怎么样 / 现在到哪一步 / 看看验收情况”，或报告、QA 结论出来后，运行
 `node <工具包目录>/bundle/workbench/cli.mjs <项目根目录>`（工具包目录默认 `~/.dsh-delivery-kit`），
 它只读 `.delivery/`，生成 `.delivery/workbench.html`（合同条目、冻结版本和文件哈希核对、QA 结论、测试证据、复盘进度），用 `present` 展示给用户。加 `--json` 可拿到同样的汇总数据。工作台是只读视图，不要据此改写 QA 结论。
+
+## 自检
+用户说“检查一下交付工具 / 好像不灵了”时，提醒用户输入 `/delivery-doctor`：它会逐项检查插件版本、守卫是否加载、技能目录、当前目录的交付项目文件和行业经验包，输出“✓ 项目：说明”或“✗ 项目：怎么修”。把输出如实转告用户，不要自己另写一套诊断。
 
 ## 防死循环
 - 同一工具、同样参数、结果没变：不要再调，换方法或说明受阻。

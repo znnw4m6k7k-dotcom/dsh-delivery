@@ -26,14 +26,25 @@ export function renderWorkbench(s, { now = new Date() } = {}) {
   const c = s.contract
   const rows = s.acceptance
   const passN = rows.filter((r) => r.status === 'pass').length
+  const cv = s.evidence.currentVersion
+  const testText = cv.unconfirmed === false ? `${cv.passed ?? 0}/${cv.total ?? 0}` : '数量未确认'
+  const rework = s.rework ?? 0
+  // 顶部一句话：现在卡在哪、在等谁。只有当前版本还没拿到 QA 通过、且返工 3 轮及以上时才标红并提示；
+  // QA 通过之后（写报告、等复盘、已交付、已复盘）只显示返工轮数，不标红、不提示。
+  const alert = s.reworkAlert ?? (rework >= 3 && s.qa?.verdict !== 'pass')
+  const nextLine = `<div class="next${alert ? ' alert' : ''}">下一步：${esc(s.next?.text ?? '')}${
+    rework ? `（返工 ${rework} 轮）` : ''
+  }${alert ? ' 建议停下来和用户确认范围' : ''}</div>`
   const head = `
 <header>
   <h1>${esc(s.name)} <small>交付工作台</small></h1>
+  ${nextLine}
   <div class="kpis">
     <div><b>${esc(s.stage)}</b><span class="lbl">当前阶段</span></div>
     <div><b>${esc(s.freeze.version ?? '—')}</b><span class="lbl">冻结版本</span></div>
     <div>${pill(VERDICT[s.qa.verdict] ?? VERDICT.unknown)}<span class="lbl">QA 结论</span></div>
     <div><b>${passN}/${rows.length}</b><span class="lbl">验收通过</span></div>
+    <div><b>${esc(testText)}</b><span class="lbl">测试</span></div>
   </div>
 </header>`
 
@@ -112,7 +123,9 @@ main{max-width:960px;margin:0 auto;padding:24px}
 h1{font-size:22px;margin:0 0 12px}h1 small{font-size:14px;color:var(--mute);font-weight:400}
 h2{font-size:16px;margin:0 0 8px}h3{font-size:13px;color:var(--mute);margin:12px 0 4px}
 section{border:1px solid var(--line);border-radius:10px;padding:16px;margin:16px 0}
-.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.next{margin:10px 0 0;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card);font-size:13px}
+.next.alert{border-color:var(--bad);color:var(--bad);font-weight:600}
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:12px}
 .kpis div{background:var(--card);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:4px}
 .kpis b{font-size:18px}.kpis .lbl{color:var(--mute);font-size:12px}.kpis .pill{align-self:flex-start;font-size:14px}
 table{width:100%;border-collapse:collapse}th,td{text-align:left;vertical-align:top;padding:6px 8px;border-top:1px solid var(--line)}
