@@ -171,9 +171,20 @@ def evaluate_bash(ti, cwd):
     return None
 
 
+
+def _utf8_console():
+    # Windows 控制台默认编码（cp1252/GBK）打不出部分中文和符号，统一用 UTF-8 输出
+    for s in (sys.stdout, sys.stderr):
+        try:
+            s.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
+
 def main():
+    _utf8_console()
     try:
-        data = json.load(sys.stdin)
+        data = json.loads(sys.stdin.buffer.read().decode("utf-8", "replace"))
         tool = data.get("tool_name", "")
         ti = data.get("tool_input") or {}
         cwd = data.get("cwd") or os.getcwd()

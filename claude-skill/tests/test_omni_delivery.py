@@ -11,10 +11,12 @@ SKILL = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "omni-del
 DELIVERY = os.path.join(SKILL, "scripts", "delivery.py")
 LESSONS = os.path.join(SKILL, "scripts", "lessons.py")
 GUARD = os.path.join(SKILL, "hooks", "guard.py")
+# Windows 上通常没有 python3，只有 python / py
+PY = "python3" if shutil.which("python3") else "python"
 
 
 def run(args, cwd, stdin=None):
-    return subprocess.run([sys.executable, *args], cwd=cwd, input=stdin, capture_output=True, text=True)
+    return subprocess.run([sys.executable, *args], cwd=cwd, input=stdin, capture_output=True, text=True, encoding="utf-8", errors="replace")
 
 
 class DeliveryFlow(unittest.TestCase):
@@ -46,7 +48,7 @@ class DeliveryFlow(unittest.TestCase):
         self.write(".delivery/contract.json", self.contract)
 
     def freeze(self):
-        return run([DELIVERY, "freeze", "calc.py", "tests", "--test", "python3 -m unittest discover -s tests -t ."], self.d)
+        return run([DELIVERY, "freeze", "calc.py", "tests", "--test", PY + " -m unittest discover -s tests -t ."], self.d)
 
     def guard(self, tool, ti, **extra):
         return run([GUARD], self.d, json.dumps({"tool_name": tool, "tool_input": ti, "cwd": self.d, **extra}))
@@ -76,7 +78,7 @@ class DeliveryFlow(unittest.TestCase):
         self.assertIn("ev-1", r.stdout)
         self.assertEqual(run([DELIVERY, "run-test"], self.d).returncode, 1)
         # 诊断证据不能支撑 passed
-        run([DELIVERY, "run-test", "--purpose", "diagnostic", "--question", "能导入吗", "--cmd", "python3 -c 'import calc'"], self.d)
+        run([DELIVERY, "run-test", "--purpose", "diagnostic", "--question", "能导入吗", "--cmd", PY + " -c \"import calc\""], self.d)
         qa = {"freeze_version": "v1", "requirements": [{"requirement_id": "requirement-1", "status": "passed", "evidence": "ev-2"}],
               "must_fix": [], "release_status": "ready"}
         self.write(".delivery/qa/v1.json", qa)
