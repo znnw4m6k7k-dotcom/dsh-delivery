@@ -72,6 +72,8 @@ Say "DSH 命令行：$Cli"
 
 # 没有扩展名的 dsh 是 Node 脚本，需要用 node 运行
 function Invoke-Dsh([string[]]$a) {
+  # dsh 往 stderr 打印提示时，PowerShell 5 在 Stop 模式下会把它当成异常；这里按退出码判断
+  $ErrorActionPreference = 'Continue'
   if ([IO.Path]::GetExtension($Cli) -eq '') {
     $node = Get-Command node -ErrorAction SilentlyContinue
     $bundled = Join-Path (Split-Path -Parent (Split-Path -Parent $Cli)) 'node.exe'

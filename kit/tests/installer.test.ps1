@@ -11,6 +11,8 @@ $env:DSH_DELIVERY_HOME = Join-Path $T "我的 工具包"
 New-Item -ItemType Directory -Force -Path (Join-Path $env:DSH_HOME 'profiles\desktop'), (Join-Path $env:DSH_HOME 'profiles\web') | Out-Null
 function Fail($m) { Write-Host "FAIL: $m"; exit 1 }
 function Run($file) {
+  # PowerShell 5 下，子进程的 stderr 配合 2>&1 会被当成错误抛出，这里只要收集输出
+  $ErrorActionPreference = 'Continue'
   $out = & powershell -NoProfile -ExecutionPolicy Bypass -File $file 2>&1 | Out-String
   return @{ code = $LASTEXITCODE; out = $out }
 }
