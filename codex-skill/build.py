@@ -164,6 +164,11 @@ def same_tree(a, b):
 
 
 if __name__ == "__main__":
+    for _s in (sys.stdout, sys.stderr):  # Windows 控制台默认编码打不出中文
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
     if "--check" in sys.argv:
         tmp = os.path.join(tempfile.mkdtemp(), "omni-delivery")
         build(tmp)
