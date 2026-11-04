@@ -21,6 +21,8 @@ WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 # 避免把 node -e '…=>…'、cp=require(…) 这类脚本代码误当成写操作；脚本里的写文件调用另用 CODE_WRITE 识别。
 SHELL_WRITE = re.compile(r"(?:^|[\s;&|(])(?:\d?>>?(?![&>])(?!\s*/dev/null)|&>)|\btee\b|\bsed\s+(?:-[a-zA-Z]*\s+)*-i|\bmv\b|\bcp\b|\brm\b|\btruncate\b|\bdd\b|\bln\b|\binstall\b|\bperl\s+-[a-z]*i")
 CODE_WRITE = re.compile(r"\b(?:writeFileSync|appendFileSync|writeFile|appendFile|createWriteStream|renameSync|unlinkSync|rmSync|copyFileSync|cpSync|write_text|write_bytes|shutil\.(?:copy\w*|move|rmtree)|os\.(?:remove|unlink|rename|replace))\b|\bopen\([^)]*,\s*['\"][wax]")
+PWSH_WRITE = re.compile(r"\b(?:Set-Content|Add-Content|Out-File|New-Item|Remove-Item|Move-Item|Copy-Item|Rename-Item|Clear-Content|Tee-Object|Expand-Archive)\b|\[(?:System\.)?IO\.File\]::(?:Write|Append|Copy|Move|Delete|Replace)|(?:^|[\s;|(])(?:ni|ri|del|erase|rd|rmdir|mi|move|copy|cpi|ren|sc|ac|clc)\s", re.I)
+SHELL_TOOLS = {"Bash", "PowerShell"}  # Windows 版 Claude Code 可能用 PowerShell 工具跑命令
 HEREDOC = re.compile(r"(<<-?\s*(['\"]?)([A-Za-z_]\w*)\2[^\n]*)\n[\s\S]*?\n[ \t]*\3[ \t]*(?=\n|$)")
 
 
@@ -32,7 +34,8 @@ def shell_skeleton(cmd):
 
 
 def looks_write(cmd):
-    return bool(SHELL_WRITE.search(shell_skeleton(cmd)) or CODE_WRITE.search(str(cmd or "")))
+    skel = shell_skeleton(cmd)
+    return bool(SHELL_WRITE.search(skel) or PWSH_WRITE.search(skel) or CODE_WRITE.search(str(cmd or "")))
 
 
 def read_json(p):
@@ -93,7 +96,7 @@ def after_edit(path, tool, ti):
 
 
 def evaluate(tool, ti, cwd, is_root):
-    if tool == "Bash":
+    if tool in SHELL_TOOLS:
         return evaluate_bash(ti, cwd)
     if tool not in WRITE_TOOLS:
         return None
@@ -162,7 +165,8 @@ def evaluate_bash(ti, cwd):
         return None
     for f in files:
         rel = os.path.relpath(f, root)
-        if rel and (rel in cmd or f in cmd):
+        c = cmd.replace("\\", "/")
+        if rel and (rel in cmd or f in cmd or rel.replace("\\", "/") in c or f.replace("\\", "/") in c):
             return f"命令看起来会修改已冻结的 {rel}（版本 {ver} 正在等待验收）。等 QA 结果出来再改，或先重新 freeze。"
     return None
 

@@ -66,6 +66,7 @@ class DeliveryFlow(unittest.TestCase):
         self.assertEqual(self.freeze().returncode, 0)
         # 冻结后守卫拦截修改
         self.assertEqual(self.guard("Edit", {"file_path": "calc.py", "old_string": "+", "new_string": "-"}).returncode, 2)
+        self.assertEqual(self.guard("PowerShell", {"command": "Set-Content -Path .\\calc.py -Value x"}).returncode, 2)
         self.assertEqual(self.guard("Write", {"file_path": ".delivery/report.md", "content": "完成"}).returncode, 2)
         self.assertEqual(self.guard("Write", {"file_path": ".delivery/qa/v1.json", "content": "{}"}, agent_id="").returncode, 2)
         self.assertEqual(self.guard("Write", {"file_path": ".delivery/qa/v1.json", "content": "{}"}, agent_id="qa1").returncode, 0)
@@ -108,6 +109,10 @@ for (const f of JSON.parse(fs.readFileSync(".delivery/freeze.json","utf8")).file
         self.assertTrue(g.looks_write("sed -i '' 's/a/b/' calc.py"))
         self.assertTrue(g.looks_write("python3 - <<'EOF'\nopen('calc.py','w').write('x')\nEOF"))
         self.assertTrue(g.looks_write("""node -e 'require("fs").writeFileSync("calc.py","")'"""))
+        # Windows：PowerShell 写文件命令
+        self.assertTrue(g.looks_write("Set-Content -Path calc.py -Value 'x'"))
+        self.assertTrue(g.looks_write("Remove-Item .\\calc.py"))
+        self.assertFalse(g.looks_write("Get-Content calc.py"))
 
 
 class ParseCounts(unittest.TestCase):
