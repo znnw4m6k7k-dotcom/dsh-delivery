@@ -11,10 +11,12 @@ SKILL = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "omni-del
 DELIVERY = os.path.join(SKILL, "scripts", "delivery.py")
 LESSONS = os.path.join(SKILL, "scripts", "lessons.py")
 GUARD = os.path.join(SKILL, "hooks", "guard.py")
+# Windows 上通常没有 python3，只有 python / py
+PY = "python3" if shutil.which("python3") else "python"
 
 
 def run(args, cwd, stdin=None):
-    return subprocess.run([sys.executable, *args], cwd=cwd, input=stdin, capture_output=True, text=True)
+    return subprocess.run([sys.executable, *args], cwd=cwd, input=stdin, capture_output=True, text=True, encoding="utf-8", errors="replace")
 
 
 class DeliveryFlow(unittest.TestCase):
@@ -46,7 +48,7 @@ class DeliveryFlow(unittest.TestCase):
         self.write(".delivery/contract.json", self.contract)
 
     def freeze(self):
-        return run([DELIVERY, "freeze", "calc.py", "tests", "--test", "python3 -m unittest discover -s tests -t ."], self.d)
+        return run([DELIVERY, "freeze", "calc.py", "tests", "--test", PY + " -m unittest discover -s tests -t ."], self.d)
 
     def guard(self, tool, ti, **extra):
         return run([GUARD], self.d, json.dumps({"tool_name": tool, "tool_input": ti, "cwd": self.d, **extra}))
@@ -66,6 +68,7 @@ class DeliveryFlow(unittest.TestCase):
         self.assertEqual(self.freeze().returncode, 0)
         # 冻结后守卫拦截修改
         self.assertEqual(self.guard("Edit", {"file_path": "calc.py", "old_string": "+", "new_string": "-"}).returncode, 2)
+        self.assertEqual(self.guard("PowerShell", {"command": "Set-Content -Path .\\calc.py -Value x"}).returncode, 2)
         self.assertEqual(self.guard("Write", {"file_path": ".delivery/report.md", "content": "完成"}).returncode, 2)
         self.assertEqual(self.guard("Write", {"file_path": ".delivery/qa/v1.json", "content": "{}"}, agent_id="").returncode, 2)
         self.assertEqual(self.guard("Write", {"file_path": ".delivery/qa/v1.json", "content": "{}"}, agent_id="qa1").returncode, 0)
@@ -75,7 +78,7 @@ class DeliveryFlow(unittest.TestCase):
         self.assertIn("ev-1", r.stdout)
         self.assertEqual(run([DELIVERY, "run-test"], self.d).returncode, 1)
         # 诊断证据不能支撑 passed
-        run([DELIVERY, "run-test", "--purpose", "diagnostic", "--question", "能导入吗", "--cmd", "python3 -c 'import calc'"], self.d)
+        run([DELIVERY, "run-test", "--purpose", "diagnostic", "--question", "能导入吗", "--cmd", PY + " -c \"import calc\""], self.d)
         qa = {"freeze_version": "v1", "requirements": [{"requirement_id": "requirement-1", "status": "passed", "evidence": "ev-2"}],
               "must_fix": [], "release_status": "ready"}
         self.write(".delivery/qa/v1.json", qa)
@@ -108,6 +111,10 @@ for (const f of JSON.parse(fs.readFileSync(".delivery/freeze.json","utf8")).file
         self.assertTrue(g.looks_write("sed -i '' 's/a/b/' calc.py"))
         self.assertTrue(g.looks_write("python3 - <<'EOF'\nopen('calc.py','w').write('x')\nEOF"))
         self.assertTrue(g.looks_write("""node -e 'require("fs").writeFileSync("calc.py","")'"""))
+        # Windows：PowerShell 写文件命令
+        self.assertTrue(g.looks_write("Set-Content -Path calc.py -Value 'x'"))
+        self.assertTrue(g.looks_write("Remove-Item .\\calc.py"))
+        self.assertFalse(g.looks_write("Get-Content calc.py"))
 
 
 class ParseCounts(unittest.TestCase):
@@ -145,7 +152,7 @@ class Lessons(unittest.TestCase):
     def test_deidentify_confirm_supersede(self):
         ev = [{"ref": "feedback:1", "quote": "预算没问"}]
         terms = os.path.join(self.d, "t.txt")
-        with open(terms, "w") as f:
+        with open(terms, "w", encoding="utf-8") as f:
             f.write("某品牌\n")
         bad = self.cands([{"id": "c1", "type": "pitfall", "statement": "某品牌旁租金 3万元", "evidence": ev, "review": "approved"}])
         self.assertEqual(run([LESSONS, "merge", self.pack, bad, "--project", "P-1", "--terms", terms], self.d).returncode, 1)

@@ -1,7 +1,7 @@
 // dsh-delivery-guard：交付流程的运行时守卫（Host 插件，随 @local/delivery-kit 安装）
 // 只在项目里存在 .delivery/ 目录时生效，对其他会话没有影响。
 // 规则：
-//   R1 冻结后等待验收期间，冻结清单里的文件禁止修改（write/edit；bash 做简单识别）
+//   R1 冻结后等待验收期间，冻结清单里的文件禁止修改（write/edit；bash / PowerShell 做简单识别）
 //   R2 freeze.json：版本号只能递增；已有 QA 结论的版本不能覆盖；不能预填 QA 结论
 //   R3 .delivery/qa/*.json 只能由子 Agent（QA）写；冻结后等待验收期间，子 Agent 只能写 .delivery/qa/
 //   R4 当前冻结版本还没有 QA 结论时，不能写 report.md（除非写明“未验收”及原因）
@@ -23,6 +23,9 @@ export const inject = ['tools']
 // workingDirectory 和 agents 是可选服务，用 ctx.get() 在调用时取，缺了也不报错
 
 const WRITE_TOOLS = new Set(['write', 'edit'])
+// 命令行工具：macOS/Linux 是 bash，Windows 上 DSH 用 PowerShell（dsh-tool-pwsh），名字按常见写法都认
+export const SHELL_TOOLS = new Set(['bash', 'pwsh', 'powershell', 'shell'])
+const isShell = (name) => SHELL_TOOLS.has(String(name ?? '').toLowerCase())
 const QA_KEYS = ['qa', 'release_status', 'requirements', 'verdict', 'qa_result', 'qa_status']
 
 function readJson(file) {
@@ -47,7 +50,7 @@ export function findDeliveryRoot(start) {
 // 都要按子项目判断，否则会记到根目录的另一个项目上去（2026-11-01 新手试跑就踩了这个坑）。
 
 /** 可能是“跑测试”的命令片段：只用来判断多个 cd 里哪个才是测试命令执行前的最后一个 */
-const TEST_CMD = /\b(?:pytest|unittest|nose2?)\b|\bnode\s+(?:--test|-e|--eval|--check)\b|\bnpm\s+(?:run\s+)?test\b|\bgo\s+test\b|\bpython3?\s+-m\s+(?:unittest|pytest)\b/
+const TEST_CMD = /\b(?:pytest|unittest|nose2?)\b|\bnode\s+(?:--test|-e|--eval|--check)\b|\bnpm\s+(?:run\s+)?test\b|\bgo\s+test\b|\b(?:python3?|py)\s+-m\s+(?:unittest|pytest)\b/
 
 /** 按 && / || / ; / 换行拆成 shell 片段（够用即可，不追求完整 shell 语法） */
 function shellSegments(command) {
@@ -294,7 +297,7 @@ export function parseTestCounts(output) {
 }
 
 /** 排查类命令的特征：node -e / node --check / echo / python -c 等，只用于诊断，不算验收 */
-const TESTISH = /\bnode\s+(?:-e|--eval|--check|--test)\b|\bnpm\s+(?:run\s+)?test\b|\bpytest\b|\bgo\s+test\b|\bpython3?\s+-m\s+(?:unittest|pytest)\b|^echo\b|\bpython3?\s+-c\b/
+const TESTISH = /\bnode\s+(?:-e|--eval|--check|--test)\b|\bnpm\s+(?:run\s+)?test\b|\bpytest\b|\bgo\s+test\b|\b(?:python3?|py)\s+-m\s+(?:unittest|pytest)\b|^echo\b|\b(?:python3?|py)\s+-c\b/
 
 // 只读查看/打印类命令：不产生证据行；即使命令文本里出现了冻结命令字符串，也永远不算验收
 // （例如 freeze 里是 npm test 时，`grep "npm test" package.json` 不能算测试通过）。
@@ -302,7 +305,7 @@ const TESTISH = /\bnode\s+(?:-e|--eval|--check|--test)\b|\bnpm\s+(?:run\s+)?test
 const READONLY_FIRST = /^\s*(?:echo|cat|grep|egrep|fgrep|rg|head|tail|wc|pwd|which|type|stat|diff|ls|file|tree|du|df)\b/
 
 // 一次性脚本（node -e / node --check / python -c）常被拿来手工验证产出：记为排查，不算验收
-const SCRIPT_FIRST = /^\s*(?:node\s+(?:-e|--eval|--check)|python3?\s+-c)\b/
+const SCRIPT_FIRST = /^\s*(?:node\s+(?:-e|--eval|--check)|(?:python3?|py)\s+-c)\b/
 
 /** 命令片段是否作为“完整的一段命令”出现（前后是命令边界，避免 pytest 命中 pytest.ini、npm test 命中带引号的 grep 参数） */
 function containsCommand(cmd, fragment) {
@@ -404,7 +407,7 @@ function afterEdit(file, args) {
  */
 export function evaluate(call) {
   const { tool, args = {}, cwd, isRoot } = call
-  if (tool === 'bash') return evaluateBash(call)
+  if (isShell(tool)) return evaluateBash(call)
   if (!WRITE_TOOLS.has(tool)) return undefined
   const raw = args.file_path ?? args.path
   if (typeof raw !== 'string' || !cwd) return undefined
@@ -485,6 +488,8 @@ export function evaluate(call) {
 // 只看 shell 层：先去掉引号里的内容和 heredoc 正文，避免把 `node -e '…=>…'`、`cp=require(…)`
 // 这类脚本代码误当成重定向/cp 命令（实机误拦过 QA 的只读核对）。脚本代码里的写操作另用 CODE_WRITE 识别。
 const SHELL_WRITE = /(?:^|[\s;&|(])(?:\d?>>?(?![&>])(?!\s*\/dev\/null)|&>)|\btee\b|\bsed\s+(?:-[a-zA-Z]*\s+)*-i|\bmv\b|\bcp\b|\brm\b|\btruncate\b|\bdd\b|\bln\b|\binstall\b/
+// PowerShell 的写文件命令和常见别名（Windows 上的 DSH 用 PowerShell 跑命令）
+const PWSH_WRITE = /\b(?:Set-Content|Add-Content|Out-File|New-Item|Remove-Item|Move-Item|Copy-Item|Rename-Item|Clear-Content|Tee-Object|Expand-Archive)\b|\[(?:System\.)?IO\.File\]::(?:Write|Append|Copy|Move|Delete|Replace)|(?:^|[\s;|(])(?:ni|ri|del|erase|rd|rmdir|mi|move|copy|cpi|ren|sc|ac|clc)\s/i
 const CODE_WRITE = /\b(?:writeFileSync|appendFileSync|writeFile|appendFile|createWriteStream|renameSync|unlinkSync|rmSync|copyFileSync|cpSync|write_text|write_bytes|shutil\.(?:copy\w*|move|rmtree)|os\.(?:remove|unlink|rename|replace))\b|\bopen\([^)]*,\s*['"][wax]/
 export function shellSkeleton(cmd) {
   let s = String(cmd ?? '')
@@ -495,7 +500,8 @@ export function shellSkeleton(cmd) {
   return s
 }
 export function looksWrite(cmd) {
-  return SHELL_WRITE.test(shellSkeleton(cmd)) || CODE_WRITE.test(String(cmd ?? ''))
+  const skel = shellSkeleton(cmd)
+  return SHELL_WRITE.test(skel) || PWSH_WRITE.test(skel) || CODE_WRITE.test(String(cmd ?? ''))
 }
 function evaluateBash(call) {
   const cmd = String(call.args?.command ?? '')
@@ -535,11 +541,23 @@ function evaluateBash(call) {
   if (st.qaExists || !looksWrite(cmd)) return undefined
   for (const f of st.files) {
     const rel = path.relative(root, f)
-    if (rel && (cmd.includes(rel) || cmd.includes(f))) {
+    if (rel && mentionsPath(cmd, rel, f)) {
       return noted('R1', `命令看起来会修改已冻结的 ${rel}（版本 ${st.version} 正在等待验收）。等 QA 结果出来再改，或先升级冻结版本。`)
     }
   }
   return undefined
+}
+
+// 命令里是否提到了这个文件：Windows 上路径可能写成反斜杠、大小写也不敏感，统一成 / 再比
+function mentionsPath(cmd, rel, abs) {
+  const norm = (x) => String(x).replace(/\\/g, '/')
+  const c = norm(cmd), r = norm(rel), a = norm(abs)
+  if (c.includes(r) || c.includes(a)) return true
+  if (process.platform === 'win32') {
+    const lc = c.toLowerCase()
+    return lc.includes(r.toLowerCase()) || lc.includes(a.toLowerCase())
+  }
+  return false
 }
 
 /** E1：测试命令的证据记录（交付运行 delivery / 排查运行 diagnostic） */
@@ -703,11 +721,11 @@ export function apply(ctx) {
   const cwdByCall = new WeakMap()
 
   ctx.on('tools/pre-execute', async (exec, next) => {
-    if (exec.name !== 'bash' && !WRITE_TOOLS.has(exec.name)) return next()
+    if (!isShell(exec.name) && !WRITE_TOOLS.has(exec.name)) return next()
     let reason
     try {
       const cwd = await cwdOf(exec)
-      if (exec.name === 'bash') cwdByCall.set(exec, cwd)
+      if (isShell(exec.name)) cwdByCall.set(exec, cwd)
       reason = evaluate({ tool: exec.name, args: exec.arguments ?? {}, cwd, isRoot: isRootOf(exec) })
     } catch {
       reason = undefined // 守卫自身出错时不阻断工作
@@ -716,7 +734,7 @@ export function apply(ctx) {
   })
 
   ctx.on('tools/result', (exec, result) => {
-    if (exec.name !== 'bash') return
+    if (!isShell(exec.name)) return
     try {
       const cwd0 = cwdByCall.get(exec)
       const args = exec.arguments ?? {}

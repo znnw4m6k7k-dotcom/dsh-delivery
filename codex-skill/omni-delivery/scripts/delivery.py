@@ -31,7 +31,7 @@ SKIP_DIRS = {".git", ".delivery", "node_modules", "__pycache__", ".venv", "venv"
 FAKE_TEST = [
     (r"^\s*(echo|printf|true|:)(\s|$)", "echo/printf/true 只是打印，不是测试"),
     (r"\bnode\s+(-e|--eval|-p|--print|-c|--check)\b", "node -e / node --check 只能用于诊断"),
-    (r"\bpython3?\s+-c\b", "python -c 一行脚本不是测试入口"),
+    (r"\b(?:python3?|py)\s+-c\b", "python -c 一行脚本不是测试入口"),
     (r"\|\|\s*true\b|;\s*true\s*$|;\s*exit\s+0\s*$", "命令吞掉了失败退出码"),
 ]
 
@@ -351,7 +351,7 @@ def judge(code, counts):
 
 def run_one(c, cmd, timeout):
     try:
-        r = subprocess.run(cmd, shell=True, cwd=c.root, capture_output=True, text=True, timeout=timeout)
+        r = subprocess.run(cmd, shell=True, cwd=c.root, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
         out, code = (r.stdout or "") + "\n" + (r.stderr or ""), r.returncode
     except subprocess.TimeoutExpired as e:
         out = f"{e.stdout or ''}\n{e.stderr or ''}\n[超时 {timeout}s]"
@@ -546,7 +546,18 @@ def cmd_check_report(a):
     ok("报告结构完整，状态声明与验收结论一致")
 
 
+
+def _utf8_console():
+    # Windows 控制台默认编码（cp1252/GBK）打不出部分中文和符号，统一用 UTF-8 输出
+    for s in (sys.stdout, sys.stderr):
+        try:
+            s.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
+
 def main():
+    _utf8_console()
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--root", help="项目根目录（默认从当前目录向上找 .delivery/）")
     sp = ap.add_subparsers(dest="cmd", required=True)

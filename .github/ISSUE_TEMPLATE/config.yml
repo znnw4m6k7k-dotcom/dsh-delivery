@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 安装问题排查（先看这里）
+    url: https://github.com/znnw4m6k7k-dotcom/dsh-delivery/blob/main/docs/安装问题排查.md
+    about: 按提示文字列出了常见安装问题和解决办法

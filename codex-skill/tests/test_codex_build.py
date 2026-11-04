@@ -10,12 +10,12 @@ ROOT = os.path.join(HERE, "..")
 
 class CodexBuild(unittest.TestCase):
     def test_generated_is_up_to_date(self):
-        r = subprocess.run([sys.executable, os.path.join(ROOT, "build.py"), "--check"], capture_output=True, text=True)
+        r = subprocess.run([sys.executable, os.path.join(ROOT, "build.py"), "--check"], capture_output=True, text=True, encoding="utf-8", errors="replace")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
     def test_scripts_shared_and_runnable(self):
         d = os.path.join(ROOT, "omni-delivery", "scripts", "delivery.py")
-        r = subprocess.run([sys.executable, d, "--help"], capture_output=True, text=True)
+        r = subprocess.run([sys.executable, d, "--help"], capture_output=True, text=True, encoding="utf-8", errors="replace")
         self.assertEqual(r.returncode, 0)
         skill = open(os.path.join(ROOT, "omni-delivery", "SKILL.md"), encoding="utf-8").read()
         self.assertTrue(skill.startswith("---\nname: omni-delivery\n"))

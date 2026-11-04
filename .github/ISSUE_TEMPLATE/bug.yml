@@ -1,0 +1,14 @@
+name: 使用问题 / 建议
+description: 交付流程、守卫、复盘、行业经验相关的问题或想法
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: 发生了什么 / 你希望怎样
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 怎么复现（可选）
+      description: 请去掉客户名称、金额等敏感信息。
