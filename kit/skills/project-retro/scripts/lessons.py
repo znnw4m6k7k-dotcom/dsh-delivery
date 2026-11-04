@@ -265,7 +265,18 @@ def cmd_render(a):
             open(skill, "w", encoding="utf-8").write(body)
 
 
+
+def _utf8_console():
+    # Windows 控制台默认编码（cp1252/GBK）打不出部分中文和符号，统一用 UTF-8 输出
+    for s in (sys.stdout, sys.stderr):
+        try:
+            s.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
+
 def main():
+    _utf8_console()
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     s = p.add_subparsers(dest="cmd", required=True)
     n = s.add_parser("new-pack"); n.add_argument("pack"); n.add_argument("--industry", required=True)
