@@ -61,9 +61,9 @@ test('doctorReport：版本、守卫、技能、工作目录、项目、经验�
   assert.match(text, /✓ 插件版本：1\.4\.1/)
   assert.match(text, /✓ 守卫加载：\/delivery-doctor 能运行/)
   assert.match(text, /✓ 技能目录：5 个交付技能都在/)
-  assert.match(text, new RegExp(`✓ 工作目录：${ws}（找到 2 个交付项目）`))
+  assert.ok(text.includes(`✓ 工作目录：${ws}（找到 2 个交付项目）`))
   assert.match(text, /✓ 交付项目：奶茶店/)
-  assert.match(text, new RegExp(`✓ 交付项目：奶茶店 · ${good}`))
+  assert.ok(text.includes(`✓ 交付项目：奶茶店 · ${good}`))
   assert.match(text, /✓ 项目 奶茶店：\.delivery\/ 的关键文件/)
   // 坏掉的 JSON 要点名
   assert.match(text, /✗ 项目 健身房：这些文件不是合法 JSON：freeze\.json/)
