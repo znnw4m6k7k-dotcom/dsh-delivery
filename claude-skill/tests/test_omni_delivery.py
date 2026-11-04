@@ -152,7 +152,7 @@ class Lessons(unittest.TestCase):
     def test_deidentify_confirm_supersede(self):
         ev = [{"ref": "feedback:1", "quote": "预算没问"}]
         terms = os.path.join(self.d, "t.txt")
-        with open(terms, "w") as f:
+        with open(terms, "w", encoding="utf-8") as f:
             f.write("某品牌\n")
         bad = self.cands([{"id": "c1", "type": "pitfall", "statement": "某品牌旁租金 3万元", "evidence": ev, "review": "approved"}])
         self.assertEqual(run([LESSONS, "merge", self.pack, bad, "--project", "P-1", "--terms", terms], self.d).returncode, 1)
