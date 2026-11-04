@@ -6,7 +6,6 @@
 用法：python3 codex-skill/build.py        # 重新生成
       python3 codex-skill/build.py --check # 只检查生成结果是否最新（测试用）
 """
-import filecmp
 import os
 import shutil
 import sys
@@ -146,10 +145,22 @@ def build(dest):
 
 
 def same_tree(a, b):
-    c = filecmp.dircmp(a, b)
-    if c.left_only or c.right_only or c.diff_files or c.funny_files:
+    # 按内容比较，忽略换行符差异（Windows 检出时 .md 是 CRLF、.py 是 LF，生成时统一按系统换行写）
+    def files(root):
+        out = {}
+        for dp, dns, fns in os.walk(root):
+            dns[:] = [d for d in dns if d != "__pycache__"]
+            for fn in fns:
+                out[os.path.relpath(os.path.join(dp, fn), root)] = os.path.join(dp, fn)
+        return out
+    fa, fb = files(a), files(b)
+    if fa.keys() != fb.keys():
         return False
-    return all(same_tree(os.path.join(a, d), os.path.join(b, d)) for d in c.common_dirs)
+    for rel in fa:
+        with open(fa[rel], "rb") as x, open(fb[rel], "rb") as y:
+            if x.read().replace(b"\r\n", b"\n") != y.read().replace(b"\r\n", b"\n"):
+                return False
+    return True
 
 
 if __name__ == "__main__":
