@@ -3,6 +3,7 @@
 #    只替换 persona（交付协议摘要）并让技能目录额外扫描本工具包的 skills/。
 # 2. 把新会话的默认预设改为 delivery（用户在设置里另选的默认值仍然优先）。
 # 3. 插入 Host 插件 delivery-guard（index.js）：只在项目里有 .delivery/ 时生效。
+# 4. 加强 DeepSeek 接口出错时的自动重试（见文件末尾 llm-deepseek）。
 # __KIT_DIR__ 由 install.sh 在安装时替换为工具包的绝对路径。
 # 基于 DSH 0.2.1-rc.5 的 presets/standard.patch.yml；DSH 升级后请用 install.sh 重新生成核对。
 - insert:
@@ -149,6 +150,22 @@
   name: '@deepseek-ai/dsh-agent-preset-registry'
   config:
     default: delivery
+
+# 4. DeepSeek 接口重试加强：官方默认只重试 5 次、最长间隔 10 秒，高峰期 503 持续几分钟就会让整轮任务中断，
+#    只能等用户说"继续"。这里改为最多重试 12 次、间隔 2 秒起逐步加到 60 秒（合计约 8–10 分钟），
+#    并把"stream ended before message_stop"（STREAM_CLOSED）也算作可重试。流式输出 3 分钟没有新内容就判超时并重试（官方默认 5 分钟）。
+- id: llm-deepseek
+  name: '@deepseek-ai/dsh-llm-deepseek-api-key'
+  config:
+    streamIdleTimeoutMs: 180000
+    retryPolicy:
+      mode: normal
+      maxRetries: 12
+      retryableCodes: [EMPTY_RESPONSE, RATE_LIMIT, SERVER, TIMEOUT, TRANSPORT, STREAM_CLOSED]
+      backoff:
+        initialDelayMs: 2000
+        maxDelayMs: 60000
+        jitterRatio: 0.2
 
 - insert:
     - id: delivery-guard
