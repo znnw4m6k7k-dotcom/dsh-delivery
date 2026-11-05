@@ -47,7 +47,9 @@ whenToUse: 用户要求做出一个可交付的成果（项目、功能、报告
 
 ## 第 6 步：独立验收
 - 代码/应用：`verification=independent`。准备好**含真实断言**的测试入口（`node --test`、`python3 -m unittest`、`go test ./...` 等），再派 QA 子 Agent，提示词用 `independent-qa` 技能。
-- 派 QA 时写明验收深度 `qa_depth`：默认 `standard`；纯文档、小改动和返工复验（v2 起）用 `quick`；用户要求、合规等级不是 internet 时用 `deep`。细则见 `independent-qa` 技能。返工复验只验失败条目和改动涉及的条目，不从头再验一遍。
+- 派 QA 时写明验收深度 `qa_depth`：默认 `standard`；纯文档、小改动、返工复验（v2 起），以及 **Demo / 原型**（用户说的是 Demo、原型、演示、试用版，不上线、不接真实数据）用 `quick`；用户要求、合规等级不是 internet 时用 `deep`。细则见 `independent-qa` 技能。返工复验只验失败条目和改动涉及的条目，不从头再验一遍。
+- **等 QA 时不要轮询。** 派出 QA 后先做不依赖 QA 结论的事；需要等时调用一次 `wait_agent`，`timeout_ms` 设 900000（15 分钟），超时再等一次。不要每隔两三分钟唤醒一次，也不要用 `sleep` 加查看 `.delivery/qa/` 的方式去盯。每次唤醒都要带着整段上下文重新推理，既慢又费钱。
+- QA 子 Agent 因为接口错误（503、"stream ended"、"transport failed"）中途退出，不算 QA 失败：先用 `send_message` 让它接着做（它保留了已有进度）；不能续时重新派一个，任务说明里写明"上一个 QA 因接口错误中断，已有的 `.delivery/qa/scripts/` 和截图可以直接复用"。
 - 纯 .md/.txt 文档：可用 `verification=artifact`（文件检查），但必须先征得用户明确同意，且不能用它绕过已经失败的 QA。
 - `node -e`、`node --check`、`echo`、打印成功 都不算验收，只能用于诊断。
 - **同一冻结版本同一时间只派一个 QA。** 不要并行派多个 QA 去验同一版本（会互相抢 LibreOffice、浏览器等单实例工具，也会出现结论冲突）。需要多个视角时，写进同一个 QA 的任务说明里。

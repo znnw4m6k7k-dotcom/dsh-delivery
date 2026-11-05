@@ -67,7 +67,8 @@ python3 $SKILL/scripts/delivery.py freeze <交付文件…> --test "python3 -m u
 脚本自动：算 sha256、取比所有旧版本都大的新版本号（v1、v2…）、拒绝 `node -e`/`echo`/`true`/`node --check` 这类假测试命令、拒绝覆盖已验收版本。**冻结后再改文件就必须重新冻结、重新验收。** freeze.json 里不得写任何验收结论。
 
 ### 第 6 步：独立验收
-- 代码/应用：`independent`。派**一个** QA 子 Agent，任务说明用 [references/independent-qa.md](references/independent-qa.md) 里的模板。派 QA 时写明验收深度：默认 `standard`；纯文档、小改动和返工复验（v2 起）用 `quick`；用户要求或合规等级不是 internet 时用 `deep`。返工复验只验失败条目和改动涉及的条目。QA 用 `delivery.py run-test` 取证，把结论写到 `.delivery/qa/<版本>.json`，再用 `delivery.py check-qa` 校验。
+- 代码/应用：`independent`。派**一个** QA 子 Agent，任务说明用 [references/independent-qa.md](references/independent-qa.md) 里的模板。派 QA 时写明验收深度：默认 `standard`；纯文档、小改动、返工复验（v2 起），以及 **Demo / 原型**（用户说的是 Demo、原型、演示、试用版，不上线、不接真实数据）用 `quick`；用户要求或合规等级不是 internet 时用 `deep`。返工复验只验失败条目和改动涉及的条目。QA 用 `delivery.py run-test` 取证，把结论写到 `.delivery/qa/<版本>.json`，再用 `delivery.py check-qa` 校验。
+- 等 QA 时不要反复轮询：在后台派出后先做不依赖 QA 的事，需要等就一次性等它返回；不要用 `sleep` 加查看 `.delivery/qa/` 的方式去盯。QA 因接口错误（限流、断流）中途退出不算 QA 失败，重新派一个并说明已有的 `.delivery/qa/scripts/` 可以复用。
 - 纯 .md/.txt 文档：可以用 `artifact`（逐条对照文件原文核对），但必须先征得用户明确同意，且不能用它绕过已失败的 QA。
 - 没有子 Agent 的环境：按同一份 QA 规则做角色切换式验收，结论里加 `"independence": "self"`，报告里写明"非独立验收"。
 - **同一冻结版本同时只派一个 QA。** 多份结论冲突时以当前冻结版本为准；同版本取更严格的那份并逐条核实。
