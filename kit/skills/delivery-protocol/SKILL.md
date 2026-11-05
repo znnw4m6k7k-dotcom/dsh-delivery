@@ -35,6 +35,7 @@ whenToUse: 用户要求做出一个可交付的成果（项目、功能、报告
 ## 第 4 步：实现
 - 改文件前先读相关代码和测试，追清默认值、缺失值、优先级、错误分支、跨文件数据流。
 - 多文件修改要一次形成完整改动，不要用第一次测试来"摸索"。
+- 有界面的交付（网页、应用、Demo）：在冻结前写一个**页面走查脚本**（如 `tests/walkthrough.mjs`，用 Playwright/Chromium），按导航把每个页面都打开一遍，每页截一张图存到 `test-output/screens/<页面名>.png`（不要放进 `.delivery/`，也不要列进冻结文件），并断言页面标题或关键元素存在、控制台没有报错。把它和其他测试一起写进冻结的测试命令。这样 QA 跑一次脚本就能看全部页面，不必一页一页手动点。
 - 每次有新发现、用户回答或失败，更新计划，避免范围无依据膨胀。
 
 ## 第 5 步：冻结
@@ -47,7 +48,7 @@ whenToUse: 用户要求做出一个可交付的成果（项目、功能、报告
 
 ## 第 6 步：独立验收
 - 代码/应用：`verification=independent`。准备好**含真实断言**的测试入口（`node --test`、`python3 -m unittest`、`go test ./...` 等），再派 QA 子 Agent，提示词用 `independent-qa` 技能。
-- 派 QA 时写明验收深度 `qa_depth`：默认 `standard`；纯文档、小改动、返工复验（v2 起），以及 **Demo / 原型**（用户说的是 Demo、原型、演示、试用版，不上线、不接真实数据）用 `quick`；用户要求、合规等级不是 internet 时用 `deep`。细则见 `independent-qa` 技能。返工复验只验失败条目和改动涉及的条目，不从头再验一遍。
+- 派 QA 时写明验收深度 `qa_depth`：默认 `standard`；纯文档、小改动和返工复验（v2 起）用 `quick`；用户要求、合规等级不是 internet 时用 `deep`。细则见 `independent-qa` 技能。返工复验只验失败条目和改动涉及的条目，不从头再验一遍。
 - **等 QA 时不要轮询。** 派出 QA 后先做不依赖 QA 结论的事；需要等时调用一次 `wait_agent`，`timeout_ms` 设 900000（15 分钟），超时再等一次。不要每隔两三分钟唤醒一次，也不要用 `sleep` 加查看 `.delivery/qa/` 的方式去盯。每次唤醒都要带着整段上下文重新推理，既慢又费钱。
 - QA 子 Agent 因为接口错误（503、"stream ended"、"transport failed"）中途退出，不算 QA 失败：先用 `send_message` 让它接着做（它保留了已有进度）；不能续时重新派一个，任务说明里写明"上一个 QA 因接口错误中断，已有的 `.delivery/qa/scripts/` 和截图可以直接复用"。
 - 纯 .md/.txt 文档：可用 `verification=artifact`（文件检查），但必须先征得用户明确同意，且不能用它绕过已经失败的 QA。
