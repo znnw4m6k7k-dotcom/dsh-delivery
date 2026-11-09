@@ -1,0 +1,75 @@
+name: 测试（macOS / Windows / Linux）
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 守卫测试（DSH 组合包）
+        run: node --test "kit/tests/*.test.mjs"
+
+      - name: Claude 技能测试
+        run: python -m unittest discover -s claude-skill/tests
+
+      - name: Codex 技能测试
+        run: python -m unittest discover -s codex-skill/tests
+
+      - name: Codex 版本和 Claude 版本保持同步
+        if: runner.os != 'Windows'
+        run: |
+          python codex-skill/build.py
+          git diff --exit-code -- codex-skill/delivery-contract
+
+      - name: 安装脚本测试（macOS / Linux）
+        if: runner.os != 'Windows'
+        run: sh kit/tests/installer.test.sh
+
+      - name: 安装脚本测试（Windows PowerShell 5）
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File kit\tests\installer.test.ps1
+
+      - name: 安装脚本测试（PowerShell 7）
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: pwsh -NoProfile -File kit\tests\installer.test.ps1
+
+      - name: 在线安装（Claude 技能，macOS / Linux）
+        if: runner.os != 'Windows' && github.event_name == 'push'
+        env:
+          DSH_KIT_REF: ${{ github.ref_name }}
+        run: |
+          export HOME="$RUNNER_TEMP/home"; mkdir -p "$HOME"
+          sh install-online.sh claude
+          test -f "$HOME/.claude/skills/delivery-contract/SKILL.md"
+
+      - name: 在线安装（Claude 技能，Windows）
+        if: runner.os == 'Windows' && github.event_name == 'push'
+        shell: powershell
+        env:
+          DSH_KIT_REF: ${{ github.ref_name }}
+          DSH_KIT_TARGET: claude
+        run: |
+          Get-Content -Raw -Encoding UTF8 install-online.ps1 | Invoke-Expression
+          if (-not (Test-Path (Join-Path $HOME '.claude\skills\delivery-contract\SKILL.md'))) { Write-Host "missing in $HOME"; exit 1 }

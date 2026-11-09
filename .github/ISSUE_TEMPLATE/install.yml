@@ -1,0 +1,42 @@
+name: 安装问题
+description: 安装时报错、装完看不到“交付”预设
+labels: [安装]
+body:
+  - type: markdown
+    attributes:
+      value: 提交前请先看一眼 [安装问题排查](https://github.com/znnw4m6k7k-dotcom/dsh-delivery/blob/main/docs/安装问题排查.md)，大多数情况那里有解决办法。请不要贴 API Key。
+  - type: dropdown
+    id: target
+    attributes:
+      label: 装在哪个工具上
+      options: [DeepSeek Harness, Claude App / claude.ai, Claude Code, Codex]
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: 系统
+      options: [macOS（Apple 芯片）, macOS（Intel）, Windows 11, Windows 10, Linux]
+    validations:
+      required: true
+  - type: dropdown
+    id: how
+    attributes:
+      label: 用的哪种安装方式
+      options: [复制一行命令, 下载后双击, 让 DSH 自己装, 应用内 install_bundle, 其他]
+  - type: input
+    id: version
+    attributes:
+      label: DSH 版本（不知道可以不填）
+  - type: textarea
+    id: output
+    attributes:
+      label: 安装窗口里的全部文字
+      description: 从头到尾复制粘贴，或截图。
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: /delivery-doctor 的输出（如果装上了）

@@ -1,0 +1,4 @@
+interface:
+  display_name: "交付合同工作法"
+  short_description: "访谈定验收合同 → 计划 → 实现 → 冻结 → 独立验收 → 诚实报告 → 复盘沉淀行业经验"
+  default_prompt: "Use $delivery-contract to deliver this project: interview me first, confirm acceptance criteria, then plan, build, freeze, run independent QA and write an honest report."

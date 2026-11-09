@@ -1,0 +1,5 @@
+*.zip
+.DS_Store
+node_modules/
+kit/bundle/cordis.patch.yml
+__pycache__/
