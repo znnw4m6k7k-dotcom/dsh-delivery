@@ -60,6 +60,7 @@ python3 $SKILL/scripts/delivery.py check-contract
 - 改文件前先读相关代码和测试，追清默认值、缺失值、优先级、错误分支、跨文件数据流。
 - 多文件修改一次形成完整改动，不要用第一次测试来"摸索"。
 - 代码类交付：在冻结前准备好**含真实断言**的测试入口（`python3 -m unittest`、`pytest`、`node --test`、`go test ./...`）。
+- 有界面的交付（网页、应用、Demo）：在冻结前写一个**页面走查脚本**（如 `tests/walkthrough.mjs`，用 Playwright/Chromium），按导航把每个页面都打开一遍，每页截一张图存到 `test-output/screens/<页面名>.png`（不要放进 `.delivery/`，也不要列进冻结文件），并断言页面标题或关键元素存在、控制台没有报错。把它和其他测试一起写进冻结的测试命令。这样 QA 跑一次脚本就能看全部页面，不必一页一页手动点。
 - 每次有新发现、用户回答或失败，更新计划，避免范围无依据膨胀。
 
 ### 第 5 步：冻结
@@ -70,6 +71,7 @@ python3 $SKILL/scripts/delivery.py freeze <交付文件…> --test "python3 -m u
 
 ### 第 6 步：独立验收
 - 代码/应用：`independent`。派**一个** QA 子 Agent，任务说明用 [references/independent-qa.md](references/independent-qa.md) 里的模板。派 QA 时写明验收深度：默认 `standard`；纯文档、小改动和返工复验（v2 起）用 `quick`；用户要求或合规等级不是 internet 时用 `deep`。返工复验只验失败条目和改动涉及的条目。QA 用 `delivery.py run-test` 取证，把结论写到 `.delivery/qa/<版本>.json`，再用 `delivery.py check-qa` 校验。
+- 等 QA 时不要反复轮询：在后台派出后先做不依赖 QA 的事，需要等就一次性等它返回；不要用 `sleep` 加查看 `.delivery/qa/` 的方式去盯。QA 因接口错误（限流、断流）中途退出不算 QA 失败，重新派一个并说明已有的 `.delivery/qa/scripts/` 可以复用。
 - 纯 .md/.txt 文档：可以用 `artifact`（逐条对照文件原文核对），但必须先征得用户明确同意，且不能用它绕过已失败的 QA。
 - 没有子 Agent 的环境：按同一份 QA 规则做角色切换式验收，结论里加 `"independence": "self"`，报告里写明"非独立验收"。
 - **同一冻结版本同时只派一个 QA。** 多份结论冲突时以当前冻结版本为准；同版本取更严格的那份并逐条核实。
