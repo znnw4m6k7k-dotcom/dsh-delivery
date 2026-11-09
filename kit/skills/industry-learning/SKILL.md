@@ -14,7 +14,7 @@ whenToUse: delivery-protocol 第 0 步；或用户说"参考之前同类项目""
 ## 2. 加载
 先读经验包的 SKILL.md（前 10 条），再按需读 `references/lessons.md`、`intake-questions.md`、`acceptance.md`、`checklists/`、`templates/`。只用 `status: active` 的经验；`needs_review` 的只能作为提醒，并告诉用户它有争议。
 
-## 3. 使用规则（来自 OmniAgent 锦囊规则）
+## 3. 使用规则
 - **只沿用方法，不照搬业务数据。** 经验来自别的客户，本项目的业务差异仍需重新确认。
 - 经验和用户本次的明确要求冲突时，以用户为准，并在 usage 里记为可能 harmful。
 - 推荐的访谈问题、验收条目要标明来源经验 id，用户同意后才进入合同。

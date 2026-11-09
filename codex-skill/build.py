@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""从 claude-skill/omni-delivery 生成 Codex 版技能 codex-skill/omni-delivery。
+"""从 claude-skill/delivery-contract 生成 Codex 版技能 codex-skill/delivery-contract。
 
 只改和运行环境有关的段落（提问、计划、独立 QA、经验包位置、守卫），流程规则和脚本完全共用。
 每条替换都断言原文存在：Claude 版改了措辞而这里没跟上时，构建直接失败，不会悄悄漏改。
@@ -12,8 +12,8 @@ import sys
 import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SRC = os.path.join(HERE, "..", "claude-skill", "omni-delivery")
-OUT = os.path.join(HERE, "omni-delivery")
+SRC = os.path.join(HERE, "..", "claude-skill", "delivery-contract")
+OUT = os.path.join(HERE, "delivery-contract")
 
 ENV_TABLE_OLD = """| 能力 | Claude Code | claude.ai（开了代码执行） | 都没有时 |
 |---|---|---|---|
@@ -63,8 +63,8 @@ QA_AFTER_NEW = "QA 进程结束后，主 Agent 自己依次运行 `delivery.py v
 
 REPLACEMENTS = {
     "SKILL.md": [
-        ("# OmniAgent 交付工作法（Claude 版）", "# OmniAgent 交付工作法（Codex 版）"),
-        ("协作协议移植到 Claude。", "协作协议移植到 Codex。"),
+        ("# 交付合同工作法（Claude 版）", "# 交付合同工作法（Codex 版）"),
+        ("交付协议用在 Claude 里。", "交付协议用在 Codex 里。"),
         (ENV_TABLE_OLD, ENV_TABLE_NEW),
         (QA_STEP_OLD, QA_STEP_NEW),
         ("- 没有子 Agent 的环境：按同一份 QA 规则做角色切换式验收", "- `codex exec` 起不来时：按同一份 QA 规则做角色切换式验收"),
@@ -97,11 +97,6 @@ REPLACEMENTS = {
     "references/industry-learning.md": [
         ("（前 10 条，Claude 会在技能触发时自动加载）", "（前 10 条，Codex 会在技能触发时自动加载）"),
     ],
-    "references/omniagent-origins.md": [
-        ("Claude 没有它的后端，所以\"后端那一半\"改由本技能的脚本和可选 hook 承担。", "Codex 没有它的后端，所以\"后端那一半\"改由本技能的脚本承担，并在关键节点由你主动运行核对。"),
-        ("| `delivery.py verify-hash`；hook R1 |", "| `delivery.py verify-hash`（QA 返回后必跑） |"),
-        ("| 第 7 步；`delivery.py check-report`；hook R4 |", "| 第 7 步；`delivery.py check-report` |"),
-    ],
     "scripts/lessons.py": [
         ("经验包目录建议：Claude Code 用 ~/.claude/skills/industry-<行业>-<细分场景>/；\nclaude.ai 在输出目录建同名文件夹，合并后 package 成 zip 让用户上传。",
          "经验包目录建议：Codex 用 ~/.codex/skills/industry-<行业>-<细分场景>/；\nClaude Code 用 ~/.claude/skills/ 下的同名文件夹；claude.ai 用 package 打成 zip 上传。"),
@@ -109,9 +104,9 @@ REPLACEMENTS = {
 }
 
 OPENAI_YAML = """interface:
-  display_name: "OmniAgent 交付工作法"
+  display_name: "交付合同工作法"
   short_description: "访谈定验收合同 → 计划 → 实现 → 冻结 → 独立验收 → 诚实报告 → 复盘沉淀行业经验"
-  default_prompt: "Use $omni-delivery to deliver this project: interview me first, confirm acceptance criteria, then plan, build, freeze, run independent QA and write an honest report."
+  default_prompt: "Use $delivery-contract to deliver this project: interview me first, confirm acceptance criteria, then plan, build, freeze, run independent QA and write an honest report."
 """
 
 
@@ -170,10 +165,10 @@ if __name__ == "__main__":
         except Exception:
             pass
     if "--check" in sys.argv:
-        tmp = os.path.join(tempfile.mkdtemp(), "omni-delivery")
+        tmp = os.path.join(tempfile.mkdtemp(), "delivery-contract")
         build(tmp)
         if not os.path.isdir(OUT) or not same_tree(tmp, OUT):
-            sys.exit("codex-skill/omni-delivery 不是最新的，运行 python3 codex-skill/build.py 重新生成")
+            sys.exit("codex-skill/delivery-contract 不是最新的，运行 python3 codex-skill/build.py 重新生成")
         print("Codex 版是最新的")
     else:
         build(OUT)

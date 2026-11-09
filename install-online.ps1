@@ -1,8 +1,8 @@
 # 在线安装（Windows），不需要 git。在 PowerShell 里粘贴运行：
 #   irm https://raw.githubusercontent.com/znnw4m6k7k-dotcom/dsh-delivery/main/install-online.ps1 | iex
 # 装到别的工具（先设置再运行上面那行）：
-#   $env:DSH_KIT_TARGET = 'claude'   # Claude Code 技能（%USERPROFILE%\.claude\skills\omni-delivery）
-#   $env:DSH_KIT_TARGET = 'codex'    # Codex 技能（%USERPROFILE%\.codex\skills\omni-delivery）
+#   $env:DSH_KIT_TARGET = 'claude'   # Claude Code 技能（%USERPROFILE%\.claude\skills\delivery-contract）
+#   $env:DSH_KIT_TARGET = 'codex'    # Codex 技能（%USERPROFILE%\.codex\skills\delivery-contract）
 #   $env:DSH_KIT_TARGET = 'all'      # 三个都装
 # 打不开 GitHub：用浏览器下载 ZIP，全部解压后双击 Install-Windows.bat。也可以用 $env:DSH_KIT_URL 指定可访问的 .zip 地址。
 & {
@@ -45,13 +45,13 @@
     $runDsh = { & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $src.FullName 'kit\install.ps1'); $LASTEXITCODE }
     switch ($Target) {
       'dsh' { $null = & $runDsh }
-      'claude' { Copy-Skill (Join-Path $src.FullName 'claude-skill\omni-delivery') (Join-Path $HOME '.claude\skills\omni-delivery') 'Claude Code' }
-      'codex' { Copy-Skill (Join-Path $src.FullName 'codex-skill\omni-delivery') (Join-Path $codexHome 'skills\omni-delivery') 'Codex' }
+      'claude' { Copy-Skill (Join-Path $src.FullName 'claude-skill\delivery-contract') (Join-Path $HOME '.claude\skills\delivery-contract') 'Claude Code' }
+      'codex' { Copy-Skill (Join-Path $src.FullName 'codex-skill\delivery-contract') (Join-Path $codexHome 'skills\delivery-contract') 'Codex' }
       'all' {
         $c = & $runDsh
         if ($c -ne 0) { Write-Host '（DSH 部分没装上，见上面的原因；继续安装 Claude / Codex 技能）' }
-        Copy-Skill (Join-Path $src.FullName 'claude-skill\omni-delivery') (Join-Path $HOME '.claude\skills\omni-delivery') 'Claude Code'
-        Copy-Skill (Join-Path $src.FullName 'codex-skill\omni-delivery') (Join-Path $codexHome 'skills\omni-delivery') 'Codex'
+        Copy-Skill (Join-Path $src.FullName 'claude-skill\delivery-contract') (Join-Path $HOME '.claude\skills\delivery-contract') 'Claude Code'
+        Copy-Skill (Join-Path $src.FullName 'codex-skill\delivery-contract') (Join-Path $codexHome 'skills\delivery-contract') 'Codex'
       }
     }
   } finally {

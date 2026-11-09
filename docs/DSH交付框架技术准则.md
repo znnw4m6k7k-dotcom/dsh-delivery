@@ -1,7 +1,6 @@
 # DSH 交付框架技术准则 v1.2
 
 > 适用：DeepSeek Harness（`com.deepseek.dsh` 0.2.x）
-> 来源：OmniAgent v0.6.2 逆向分析（见 `omniagent/omniagent-完整逆向报告.md`）+ 新增"行业经验学习"
 > 日期：2026-11-01 · 状态：一期已实现（技能），二期、三期为规格
 
 ---
@@ -10,7 +9,7 @@
 
 让 DSH 像一个"数字交付团队"那样工作：需求先澄清成可核对的合同，执行有计划，成果由**不是作者的人**验收，交付后把经验沉淀下来，下一个同行业项目做得更好。
 
-五条原则（全部来自 OmniAgent 的设计，按重要性排序）：
+五条原则（按重要性排序）：
 
 1. **不信任模型的自我汇报。** "完成了""测试通过了"必须有证据：命令、输出、文件原文。每条重要规则提示词里写一遍，能拦截的再由运行时拦一遍。
 2. **自己写的不能自己验。** 验收由独立 QA 完成，QA 只读、只看冻结版本、逐条给证据。
@@ -63,14 +62,14 @@ DSH 现成能力的使用：`skill`（规则）、`subagent`（maxDepth=1，QA �
 
 ## 3. 技能清单（一期，已实现）
 
-| 技能 | 作用 | 对应 OmniAgent |
-|---|---|---|
-| `delivery-protocol` | 主流程八步 + 防死循环 + 公开进度 | Orcus 协作协议 |
-| `delivery-intake` | 访谈问题生成 + 验收草案（带原文引用） | 需求访谈员 + 验收草案生成器 |
-| `independent-qa` | QA 子 Agent 规则和输出结构 | 独立 QA + delivery_review |
-| `industry-learning` | 识别行业、加载经验包、使用规则、记录使用 | 锦囊 use 规则 |
-| `project-retro` | 复盘、脱敏、用户逐条确认、合并、打分 | 锦囊 save + 记忆 pending 确认 |
-| （经验包）`industry-<行业>-<场景>` | 每个行业一个，由 `project-retro` 创建和维护 | 行业锦囊 |
+| 技能 | 作用 |
+|---|---|
+| `delivery-protocol` | 主流程八步 + 防死循环 + 公开进度 |
+| `delivery-intake` | 访谈问题生成 + 验收草案（带原文引用） |
+| `independent-qa` | QA 子 Agent 规则和输出结构 |
+| `industry-learning` | 识别行业、加载经验包、使用规则、记录使用 |
+| `project-retro` | 复盘、脱敏、用户逐条确认、合并、打分 |
+| （经验包）`industry-<行业>-<场景>` | 每个行业一个，由 `project-retro` 创建和维护 |
 
 `project-retro` 附带 `scripts/lessons.py`（纯 Python 标准库，DSH 自带的 Python 3.12 可直接运行）：
 
@@ -241,7 +240,7 @@ return { next: 'user-review', candidates }
 ### 10.1 一键安装（推荐，v1.1 起）
 工具包在 `kit/`（也打包成 `dsh-delivery-kit.zip`）。前提是已经装好官方 DeepSeek Harness 并打开过一次。
 ```sh
-cd ~/Claude逆向工程/dsh-delivery/kit
+cd <仓库目录>/kit
 sh install.sh
 ```
 脚本做的事：
@@ -257,7 +256,7 @@ sh install.sh
 ### 10.2 只装技能（一期做法）
 ```sh
 mkdir -p ~/.agents/skills
-cp -R ~/Claude逆向工程/dsh-delivery/skills/* ~/.agents/skills/
+cp -R <仓库目录>/kit/skills/* ~/.agents/skills/
 ```
 这样不会有“交付”预设，需要在项目 `AGENTS.md` 里写：交付类任务先加载 delivery-protocol 技能。两种方式同时存在时，工具包里的技能优先（custom 根排在 user 根之前）。
 

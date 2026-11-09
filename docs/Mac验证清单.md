@@ -4,7 +4,7 @@
 
 ## 0. 拉代码并安装
 ```sh
-cd ~/Claude逆向工程
+cd ~/Downloads
 git clone https://github.com/znnw4m6k7k-dotcom/dsh-delivery.git dsh-delivery-repo   # 已克隆过就 git pull
 cd dsh-delivery-repo/kit && sh install.sh
 ```
@@ -23,7 +23,7 @@ cd dsh-delivery-repo/kit && sh install.sh
 - [x] 先写“我理解的需求”请你确认，再列验收条目。
 
 ## 3. 复盘逐条确认（奶茶店会话）— 2026-11-01 已验证通过
-> 复盘产出 14 条候选（全部 pending），hanson 回复“全部确认”后才改为 approved，并由 lessons.py merge 写入 `industry-food-beverage-small-store-launch` 经验包 v1（新增 14 条）。
+> 复盘产出 14 条候选（全部 pending），用户回复“全部确认”后才改为 approved，并由 lessons.py merge 写入 `industry-food-beverage-small-store-launch` 经验包 v1（新增 14 条）。
 > 待定：其中 6 条（c6、c8、c9、c10、c11、c14）属于跨行业的交付纪律，以后可以拆成通用交付包，用 supersedes 迁移。
 - [x] 在奶茶店会话里说“做复盘”。
 - [x] 候选经验逐条请你确认（确认 / 修改后确认 / 拒绝）。

@@ -39,7 +39,7 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           python codex-skill/build.py
-          git diff --exit-code -- codex-skill/omni-delivery
+          git diff --exit-code -- codex-skill/delivery-contract
 
       - name: 安装脚本测试（macOS / Linux）
         if: runner.os != 'Windows'
@@ -62,7 +62,7 @@ jobs:
         run: |
           export HOME="$RUNNER_TEMP/home"; mkdir -p "$HOME"
           sh install-online.sh claude
-          test -f "$HOME/.claude/skills/omni-delivery/SKILL.md"
+          test -f "$HOME/.claude/skills/delivery-contract/SKILL.md"
 
       - name: 在线安装（Claude 技能，Windows）
         if: runner.os == 'Windows' && github.event_name == 'push'
@@ -72,4 +72,4 @@ jobs:
           DSH_KIT_TARGET: claude
         run: |
           Get-Content -Raw -Encoding UTF8 install-online.ps1 | Invoke-Expression
-          if (-not (Test-Path (Join-Path $HOME '.claude\skills\omni-delivery\SKILL.md'))) { Write-Host "missing in $HOME"; exit 1 }
+          if (-not (Test-Path (Join-Path $HOME '.claude\skills\delivery-contract\SKILL.md'))) { Write-Host "missing in $HOME"; exit 1 }

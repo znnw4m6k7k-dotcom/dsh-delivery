@@ -2,8 +2,8 @@
 # 在线安装（macOS / Linux），不需要 git：
 #   curl -fsSL https://raw.githubusercontent.com/znnw4m6k7k-dotcom/dsh-delivery/main/install-online.sh | sh
 # 装到别的工具：
-#   … | sh -s -- claude    装 Claude Code 技能（~/.claude/skills/omni-delivery）
-#   … | sh -s -- codex     装 Codex 技能（~/.codex/skills/omni-delivery）
+#   … | sh -s -- claude    装 Claude Code 技能（~/.claude/skills/delivery-contract）
+#   … | sh -s -- codex     装 Codex 技能（~/.codex/skills/delivery-contract）
 #   … | sh -s -- all       三个都装（DSH 没装时自动跳过）
 # 网络慢或打不开 GitHub：先在浏览器下载压缩包解压，再运行里面的 Install-Mac.command 或 kit/install.sh。
 # 也可以用 DSH_KIT_URL 指定一个可访问的压缩包地址（.tar.gz）。
@@ -49,11 +49,11 @@ copy_skill() { # $1=源目录 $2=目标技能目录 $3=名称
 
 case "$TARGET" in
   dsh) sh "$SRC/kit/install.sh" ;;
-  claude) copy_skill "$SRC/claude-skill/omni-delivery" "$HOME/.claude/skills/omni-delivery" "Claude Code" ;;
-  codex) copy_skill "$SRC/codex-skill/omni-delivery" "${CODEX_HOME:-$HOME/.codex}/skills/omni-delivery" "Codex" ;;
+  claude) copy_skill "$SRC/claude-skill/delivery-contract" "$HOME/.claude/skills/delivery-contract" "Claude Code" ;;
+  codex) copy_skill "$SRC/codex-skill/delivery-contract" "${CODEX_HOME:-$HOME/.codex}/skills/delivery-contract" "Codex" ;;
   all)
     sh "$SRC/kit/install.sh" || echo "（DSH 部分没装上，见上面的原因；继续安装 Claude / Codex 技能）"
-    copy_skill "$SRC/claude-skill/omni-delivery" "$HOME/.claude/skills/omni-delivery" "Claude Code"
-    copy_skill "$SRC/codex-skill/omni-delivery" "${CODEX_HOME:-$HOME/.codex}/skills/omni-delivery" "Codex"
+    copy_skill "$SRC/claude-skill/delivery-contract" "$HOME/.claude/skills/delivery-contract" "Claude Code"
+    copy_skill "$SRC/codex-skill/delivery-contract" "${CODEX_HOME:-$HOME/.codex}/skills/delivery-contract" "Codex"
     ;;
 esac

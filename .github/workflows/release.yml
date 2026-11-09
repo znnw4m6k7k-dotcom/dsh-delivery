@@ -16,8 +16,8 @@ jobs:
       - name: 打包
         run: |
           mkdir -p dist
-          (cd claude-skill && zip -qr ../dist/omni-delivery-claude.zip omni-delivery)
-          (cd codex-skill && zip -qr ../dist/omni-delivery-codex.zip omni-delivery)
+          (cd claude-skill && zip -qr ../dist/delivery-contract-claude.zip delivery-contract)
+          (cd codex-skill && zip -qr ../dist/delivery-contract-codex.zip delivery-contract)
           # DSH 完整安装包：解压后双击 Install-Mac.command / Install-Windows.bat
           mkdir -p "dist/dsh-delivery"
           cp -R kit Install-Mac.command Install-Windows.bat README.md LICENSE "dist/dsh-delivery/"
