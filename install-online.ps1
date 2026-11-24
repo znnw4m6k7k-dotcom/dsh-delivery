@@ -1,9 +1,8 @@
 # 在线安装（Windows），不需要 git。在 PowerShell 里粘贴运行：
 #   irm https://raw.githubusercontent.com/znnw4m6k7k-dotcom/dsh-delivery/main/install-online.ps1 | iex
-# 装到别的工具（先设置再运行上面那行）：
-#   $env:DSH_KIT_TARGET = 'claude'   # Claude Code 技能（%USERPROFILE%\.claude\skills\delivery-contract）
-#   $env:DSH_KIT_TARGET = 'codex'    # Codex 技能（%USERPROFILE%\.codex\skills\delivery-contract）
-#   $env:DSH_KIT_TARGET = 'all'      # 三个都装
+# 选装：先设 $env:DSH_KIT_TARGET = 'cursor'，再运行上面那行。
+# 通用目录：设 $env:DSH_KIT_TARGET = 'generic'。
+# 自定义目录：设 $env:DSH_KIT_TARGET = 'custom' 和 $env:DSH_KIT_SKILLS_DIR。
 # 打不开 GitHub：用浏览器下载 ZIP，全部解压后双击 Install-Windows.bat。也可以用 $env:DSH_KIT_URL 指定可访问的 .zip 地址。
 & {
   $ErrorActionPreference = 'Stop'
@@ -14,8 +13,25 @@
   $Ref = if ($env:DSH_KIT_REF) { $env:DSH_KIT_REF } else { 'main' }
   $Target = if ($env:DSH_KIT_TARGET) { $env:DSH_KIT_TARGET } else { 'dsh' }
   $Help = "https://github.com/$Repo/blob/main/docs/安装问题排查.md"
-  function Fail($m) { Write-Host "`n安装失败：$m" -ForegroundColor Red; Write-Host "常见问题和解决办法：$Help"; return }
-  if (@('dsh', 'claude', 'codex', 'all') -notcontains $Target) { Fail "不认识的 DSH_KIT_TARGET：$Target（可选 dsh / claude / codex / all）"; return }
+  function Fail($message) { throw "安装失败：$message`n常见问题和解决办法：$Help" }
+
+  $claudeHome = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $HOME '.claude' }
+  $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME '.codex' }
+  $configHome = if ($env:XDG_CONFIG_HOME) { $env:XDG_CONFIG_HOME } else { Join-Path $HOME '.config' }
+  # all 只安装各客户端专用目录，通用目录和自定义目录由用户单独选择。
+  $agentRoots = [ordered]@{
+    claude = Join-Path $claudeHome 'skills'
+    codex = Join-Path $codexHome 'skills'
+    cursor = Join-Path $HOME '.cursor/skills'
+    copilot = Join-Path $HOME '.copilot/skills'
+    gemini = Join-Path $HOME '.gemini/skills'
+    opencode = Join-Path $configHome 'opencode/skills'
+    windsurf = Join-Path $HOME '.codeium/windsurf/skills'
+    devin = Join-Path $configHome 'devin/skills'
+  }
+  $targets = @('dsh') + @($agentRoots.Keys) + @('generic', 'custom', 'all')
+  if ($targets -notcontains $Target) { Fail "不认识的 DSH_KIT_TARGET：$Target（可选 $($targets -join ' / ')）" }
+  if ($Target -eq 'custom' -and [string]::IsNullOrWhiteSpace($env:DSH_KIT_SKILLS_DIR)) { Fail '请设置 DSH_KIT_SKILLS_DIR 为技能根目录。' }
 
   $Tmp = Join-Path ([IO.Path]::GetTempPath()) ('dshkit-' + [guid]::NewGuid().ToString('N'))
   New-Item -ItemType Directory -Path $Tmp | Out-Null
@@ -29,30 +45,48 @@
       Write-Host "下载 $u ..."
       try { Invoke-WebRequest -UseBasicParsing -Uri $u -OutFile $zip -TimeoutSec 120; $got = $true; break } catch { Write-Host "  失败：$($_.Exception.Message)" }
     }
-    if (-not $got) { Fail "下载失败，可能是网络连不上 GitHub。可以换个网络或开代理后重试；或者在浏览器打开 https://github.com/$Repo ，点 Code → Download ZIP，全部解压后双击 Install-Windows.bat。"; return }
+    if (-not $got) { Fail "下载失败，可能是网络连不上 GitHub。可以换个网络或开代理后重试；或者在浏览器打开 https://github.com/$Repo ，点 Code → Download ZIP，全部解压后双击 Install-Windows.bat。" }
     Expand-Archive -LiteralPath $zip -DestinationPath $Tmp -Force
     $src = Get-ChildItem -LiteralPath $Tmp -Directory | Select-Object -First 1
-    if (-not $src -or -not (Test-Path (Join-Path $src.FullName 'kit\install.ps1'))) { Fail '下载的内容不完整，请重试。'; return }
-    Get-ChildItem -LiteralPath $src.FullName -Recurse -File | Unblock-File -ErrorAction SilentlyContinue
-
-    function Copy-Skill($from, $to, $name) {
-      New-Item -ItemType Directory -Force -Path (Split-Path -Parent $to) | Out-Null
-      if (Test-Path $to) { Remove-Item -Recurse -Force $to }
-      Copy-Item -Recurse -Force $from $to
-      Write-Host "已安装 $name 技能：$to（新开一个会话即可使用）"
+    if (-not $src -or -not (Test-Path (Join-Path $src.FullName 'kit\install.ps1'))) { Fail '下载的内容不完整，请重试。' }
+    if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
+      Get-ChildItem -LiteralPath $src.FullName -Recurse -File | Unblock-File -ErrorAction SilentlyContinue
     }
-    $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME '.codex' }
-    $runDsh = { & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $src.FullName 'kit\install.ps1'); $LASTEXITCODE }
-    switch ($Target) {
-      'dsh' { $null = & $runDsh }
-      'claude' { Copy-Skill (Join-Path $src.FullName 'claude-skill\delivery-contract') (Join-Path $HOME '.claude\skills\delivery-contract') 'Claude Code' }
-      'codex' { Copy-Skill (Join-Path $src.FullName 'codex-skill\delivery-contract') (Join-Path $codexHome 'skills\delivery-contract') 'Codex' }
-      'all' {
-        $c = & $runDsh
-        if ($c -ne 0) { Write-Host '（DSH 部分没装上，见上面的原因；继续安装 Claude / Codex 技能）' }
-        Copy-Skill (Join-Path $src.FullName 'claude-skill\delivery-contract') (Join-Path $HOME '.claude\skills\delivery-contract') 'Claude Code'
-        Copy-Skill (Join-Path $src.FullName 'codex-skill\delivery-contract') (Join-Path $codexHome 'skills\delivery-contract') 'Codex'
+
+    function Install-Skill($name, $root) {
+      $edition = switch ($name) {
+        'claude' { 'claude-skill' }
+        'codex' { 'codex-skill' }
+        default { 'agent-skill' }
       }
+      $from = Join-Path $src.FullName "$edition/delivery-contract"
+      if (-not (Test-Path -LiteralPath (Join-Path $from 'SKILL.md') -PathType Leaf)) {
+        Fail "压缩包里缺少 $name 的技能文件，请下载对应版本的完整源码压缩包。"
+      }
+      $to = Join-Path $root 'delivery-contract'
+      $stage = Join-Path $root ('.delivery-contract.' + [guid]::NewGuid().ToString('N'))
+      New-Item -ItemType Directory -Force -Path $stage | Out-Null
+      try {
+        $stagedSkill = Join-Path $stage 'delivery-contract'
+        Copy-Item -LiteralPath $from -Destination $stagedSkill -Recurse -Force
+        if (Test-Path -LiteralPath $to) { Remove-Item -LiteralPath $to -Recurse -Force }
+        Move-Item -LiteralPath $stagedSkill -Destination $to
+      } finally {
+        Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue
+      }
+      Write-Host "已安装 $name 技能：$to（重新加载技能或新开会话）"
+    }
+    $runDsh = { & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $src.FullName 'kit/install.ps1') | Out-Host }
+    switch ($Target) {
+      'dsh' { & $runDsh }
+      'all' {
+        & $runDsh
+        if ($LASTEXITCODE -ne 0) { Write-Host '（DSH 部分没装上，见上面的原因；继续安装其他技能）' }
+        foreach ($name in $agentRoots.Keys) { Install-Skill $name $agentRoots[$name] }
+      }
+      'generic' { Install-Skill $Target (Join-Path $HOME '.agents/skills') }
+      'custom' { Install-Skill $Target $env:DSH_KIT_SKILLS_DIR }
+      default { Install-Skill $Target $agentRoots[$Target] }
     }
   } finally {
     Remove-Item -Recurse -Force $Tmp -ErrorAction SilentlyContinue

@@ -1,15 +1,15 @@
 name: 安装问题
-description: 安装时报错、装完看不到“交付”预设
+description: 下载或安装报错，或者客户端找不到 delivery-contract 技能
 labels: [安装]
 body:
   - type: markdown
     attributes:
-      value: 提交前请先看一眼 [安装问题排查](https://github.com/znnw4m6k7k-dotcom/dsh-delivery/blob/main/docs/安装问题排查.md)，大多数情况那里有解决办法。请不要贴 API Key。
+      value: 请先查看 [安装问题排查](https://github.com/znnw4m6k7k-dotcom/dsh-delivery/blob/main/docs/安装问题排查.md)。粘贴日志或截图前请删去 API Key、个人路径和客户数据。
   - type: dropdown
     id: target
     attributes:
       label: 装在哪个工具上
-      options: [DeepSeek Harness, Claude App / claude.ai, Claude Code, Codex]
+      options: [DeepSeek Harness, Claude App / claude.ai, Claude Code, Codex, Cursor, GitHub Copilot, Gemini CLI, OpenCode, Windsurf, Devin Local, 其他 Agent]
     validations:
       required: true
   - type: dropdown
@@ -23,20 +23,26 @@ body:
     id: how
     attributes:
       label: 用的哪种安装方式
-      options: [复制一行命令, 下载后双击, 让 DSH 自己装, 应用内 install_bundle, 其他]
+      options: [在线安装命令, 下载后双击, 解压 ZIP 到技能目录, 从源码复制, 客户端上传 ZIP, 应用内 install_bundle, 其他]
   - type: input
     id: version
     attributes:
-      label: DSH 版本（不知道可以不填）
+      label: 客户端版本和安装包版本
+      placeholder: 例如 OpenCode 1.19.6，使用 main 源码
+  - type: input
+    id: install_target
+    attributes:
+      label: 安装目标或扫描的技能目录
+      placeholder: 例如 opencode、custom 或项目下的 .agents/skills（隐去个人路径）
   - type: textarea
     id: output
     attributes:
-      label: 安装窗口里的全部文字
-      description: 从头到尾复制粘贴，或截图。
+      label: 出错步骤和现象
+      description: 说明点了什么或运行了哪条命令，贴出报错或技能列表截图。没有报错时请描述期望与实际结果。
       render: text
     validations:
       required: true
   - type: textarea
     id: doctor
     attributes:
-      label: /delivery-doctor 的输出（如果装上了）
+      label: /delivery-doctor 的输出（仅 DSH）

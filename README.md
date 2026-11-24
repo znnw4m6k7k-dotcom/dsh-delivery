@@ -1,86 +1,99 @@
-# 交付模式（dsh-delivery）
+# 交付模式 · Delivery Contract
 
-让 AI 像靠谱的项目经理一样**交付成果**，而不是随手回答：先问清楚需求，和你确认验收标准，再计划、动手、交给一个独立的 QA 逐条验收，最后给你一份诚实的报告。项目结束后可以复盘，把**经你确认**的经验存进行业经验包，下一个同行业项目自动用上。
+[English quick start](README.en.md) · [下载安装包](https://github.com/znnw4m6k7k-dotcom/dsh-delivery/releases/latest) · [安装排查](docs/安装问题排查.md) · [反馈问题](https://github.com/znnw4m6k7k-dotcom/dsh-delivery/issues/new/choose)
 
-支持三种工具：
+让 AI Agent 在开工前和你确认需求与验收标准，做完后逐条核对并提交报告。适合开发小工具、写业务方案、做调研和财务测算。你也可以在交付后复盘，把逐条确认过的经验留给下次使用。
 
-| 用在哪 | 装什么 | 系统 |
+## 选一个版本
+
+在 [GitHub Releases](https://github.com/znnw4m6k7k-dotcom/dsh-delivery/releases/latest) 展开 **Assets** 查看安装包。若当前 Release 还没有通用 ZIP，可以直接使用下面的源码安装方式。
+
+| 你使用的工具 | 安装方式 | 系统或条件 |
 |---|---|---|
-| DeepSeek Harness（DSH） | 交付模式组合包：交付预设 + 5 个技能 + 运行时守卫 + 交付工作台 | macOS、Windows |
-| Claude（claude.ai、Claude App、Claude Code） | `delivery-contract` 技能 | 全部 |
-| Codex | `delivery-contract` 技能（Codex 版） | 全部 |
+| DeepSeek Harness | [DSH 组合包](#安装-deepseek-harness) · `dsh-delivery-kit.zip` | macOS、Windows。含交付预设、技能、运行时守卫和工作台 |
+| Claude 网页、Claude App、Claude Code | [Claude 技能](#安装-claude-或-codex) · `delivery-contract-claude.zip` | 网页和 App 需要开放技能上传。Claude Code 可安装到技能目录 |
+| Codex | [Codex 技能](#安装-claude-或-codex) · `delivery-contract-codex.zip` | CLI、App 或 IDE。安装到 Codex 扫描的目录 |
+| Cursor、Copilot、Gemini CLI、OpenCode、Windsurf、Devin Local 等 | [通用 Agent Skills 技能](#安装其他-agent) · `delivery-contract-generic.zip` | macOS、Windows、Linux，取决于客户端是否支持 `SKILL.md` |
+| 仅能聊天、上传附件或设置自定义指令的工具 | [复制纯对话模板](docs/纯对话快速开始.md) | 可以做访谈、约定验收标准和手工核对。执行测试需要实际运行环境 |
 
-不需要注册任何账号。在 DSH 里用，模型费用走你自己的 DeepSeek API Key。
+安装技能无需为本项目注册账号。模型使用你在客户端已有的账号或 API Key。脚本验收需要 Python 3、终端和项目文件权限。独立 QA 需要客户端支持独立 Agent 或隔离会话。
 
----
+## 安装 DeepSeek Harness
 
-## 安装（DSH）
+1. 安装并打开一次 DeepSeek Harness。
+2. 下载 `dsh-delivery-kit.zip`，完整解压。macOS 双击 `Install-Mac.command`，Windows 双击 `Install-Windows.bat`。也可用下方在线命令选择 `dsh`。
+3. 完全退出 DSH 并重新打开。初次使用时按 DSH 提示设置 DeepSeek API Key。
+4. 新建会话，看到“交付”预设后输入 `/delivery-doctor`，查看技能、守卫和工作目录的检测结果。
 
-先安装并**打开一次** DeepSeek Harness，然后任选一种方式：
+## 安装 Claude 或 Codex
 
-**方式一：复制一行命令（推荐）**
+- **Claude 网页或 App**：下载 `delivery-contract-claude.zip`，在设置的“功能 / 技能”中上传 ZIP。首次使用脚本时，按 Claude 提示开启代码执行。[Claude 安装说明](claude-skill/安装说明.md)
+- **Claude Code**：在线命令选择 `claude`，或把 Claude ZIP 解压到 `~/.claude/skills/`。如果配置了 `CLAUDE_CONFIG_DIR`，在线脚本会使用该目录下的 `skills/`。
+- **Codex**：在线命令选择 `codex`，或把 Codex ZIP 解压到 Codex 扫描的技能目录。项目级安装可把技能放到 `.agents/skills/`。若使用 `CODEX_HOME`，在线脚本会安装到该目录下的 `skills/`。[Codex 安装说明](codex-skill/安装说明.md)
 
-Mac：打开“终端”，粘贴回车
+安装后重新加载技能或新开会话，再按下面的示例验证。
+
+## 安装其他 Agent
+
+通用包使用 [Agent Skills 格式](https://agentskills.io/specification)。任选一种方式安装。
+
+1. **离线安装**：下载通用 ZIP 并解压到客户端的技能根目录。支持 ZIP 导入的客户端也可直接上传。
+2. **从源码安装**：在仓库首页点 **Code → Download ZIP**，完整解压。将 [`agent-skill/delivery-contract/`](agent-skill/delivery-contract/) 整个目录复制到客户端的技能根目录。
+3. **在线安装**：在下方命令中填入表中的目标。
+
+无论哪种方式，文件路径都应是 **`<技能根目录>/delivery-contract/SKILL.md`**。请把同目录的 `references/`、`scripts/` 和 `assets/` 一起保留。
+
+| 目标 | 客户端 | 默认技能根目录 |
+|---|---|---|
+| `cursor` | [Cursor](https://cursor.com/docs/skills) | `~/.cursor/skills/` |
+| `copilot` | [GitHub Copilot（VS Code）](https://code.visualstudio.com/docs/agent-customization/agent-skills) | `~/.copilot/skills/` |
+| `gemini` | [Gemini CLI](https://geminicli.com/docs/cli/skills/) | `~/.gemini/skills/` |
+| `opencode` | [OpenCode](https://opencode.ai/docs/skills/) | `~/.config/opencode/skills/` |
+| `windsurf` | Windsurf Cascade | `~/.codeium/windsurf/skills/` |
+| `devin` | [Devin Local](https://docs.devin.ai/desktop/devin-local/customizations) | `~/.config/devin/skills/` |
+| `generic` | 读取共享目录的客户端 | `~/.agents/skills/` |
+| `custom` | 自定义 Agent、项目级安装或其他目录配置 | 客户端实际扫描的技能根目录，例如 Copilot 项目下的 `.github/skills/` |
+
+### 在线命令
+
+也可将 `cursor` 换成 `dsh`、`claude`、`codex` 或上表里的其他目标。`all` 会尝试安装 DSH 和各客户端专用版本。一般只需安装你当前使用的客户端版本。
+
+**macOS / Linux**
+
 ```sh
-curl -fsSL https://raw.githubusercontent.com/znnw4m6k7k-dotcom/dsh-delivery/main/install-online.sh | sh
+curl -fsSL https://raw.githubusercontent.com/znnw4m6k7k-dotcom/dsh-delivery/main/install-online.sh | sh -s -- cursor
 ```
 
-Windows：打开“PowerShell”（开始菜单搜 PowerShell），粘贴回车
+指定目录时，把 `cursor` 换成 `custom "/实际路径/skills"`。
+
+**Windows PowerShell**
+
 ```powershell
+$env:DSH_KIT_TARGET = 'cursor'
 irm https://raw.githubusercontent.com/znnw4m6k7k-dotcom/dsh-delivery/main/install-online.ps1 | iex
 ```
 
-**方式二：下载后双击**
+指定目录时，将目标设为 `custom`，再设 `$env:DSH_KIT_SKILLS_DIR = 'C:\实际路径\skills'` 后运行第二行。可以先查看 [Shell 脚本](install-online.sh) 或 [PowerShell 脚本](install-online.ps1)，也可以选离线安装。
 
-1. 到 [Releases](https://github.com/znnw4m6k7k-dotcom/dsh-delivery/releases) 下载 `dsh-delivery-kit.zip`（或本页绿色按钮 Code → Download ZIP）。
-2. **全部解压**。
-3. Mac 双击 `Install-Mac.command`（第一次提示无法打开时：右键 → 打开）；Windows 双击 `Install-Windows.bat`（弹出蓝色提示时：更多信息 → 仍要运行）。
+## 第一次怎么用
 
-**方式三：让 DSH 自己装**
+1. 重新加载技能或新建会话。客户端有技能列表时，先确认能看到 `delivery-contract`。DSH 用户在“交付”预设下继续。
+2. 复制下面的示例。能读技能的客户端会使用技能。只有聊天功能时，先发 [纯对话模板](docs/纯对话快速开始.md)。
+3. 预期第一轮收到的是需求问题。你明确确认验收条目后，Agent 才开始实现。
 
-在 DSH 新会话里粘贴：
-```
-请帮我安装“交付模式”插件：如果是 Mac，在终端运行 curl -fsSL https://raw.githubusercontent.com/znnw4m6k7k-dotcom/dsh-delivery/main/install-online.sh | sh ；如果是 Windows，在 PowerShell 运行 irm https://raw.githubusercontent.com/znnw4m6k7k-dotcom/dsh-delivery/main/install-online.ps1 | iex 。只运行这一条命令，不要自己修改 ~/.dsh 里的文件。把输出原样告诉我；如果最后提示“组合包没有注册成功”，就按提示用 plugin_manager 的 install_bundle 安装它给出的目录。
-```
+> 请使用 delivery-contract，帮我做一个 CSV 销售汇总工具。开始前先问清楚输入、输出和异常数据怎么处理，再给我确认验收条目。做完说明实际执行了哪些检查，还有哪些待确认。
 
-**装好以后**
-1. 完全退出 DSH 再打开（Mac 按 Cmd+Q；Windows 在右下角托盘图标右键“退出”）。
-2. 第一次用：欢迎页选“添加 API Key”，填你在 DeepSeek 开放平台充值后创建的 Key。
-3. 新建会话，预设显示“交付”就装好了。也可以输入 `/delivery-doctor` 自检。
+有独立验收能力时，流程会交给独立 Agent 核对冻结版本。只有当前 Agent 可用时，报告会说明哪些检查是自查，哪些仍缺执行证据。你认可交付后可以说“做复盘”，候选经验逐条确认后才会写入或导出。
 
-装不上？看 **[安装问题排查](docs/安装问题排查.md)**，里面按提示文字列了所有常见情况。
+## 更新、卸载和反馈
 
-## 安装（Claude / Codex）
+- **更新**：用原来的安装方式装新版。文件版会替换原有的 `delivery-contract/`，网页或应用端可在技能设置中替换。
+- **迁移旧版**：如果还装着 `omni-delivery`，在确认新技能可用后移除旧技能，避免重复触发。
+- **卸载**：从客户端技能设置移除，或删除安装时的 `delivery-contract/`。DSH 用安装目录里的 `uninstall.sh` 或 `uninstall.ps1`。单独保存的经验包按需保留。
+- **反馈**：先查 [安装问题排查](docs/安装问题排查.md)。提交 Issue 时请写上客户端及版本、系统、安装目标和报错，删去 API Key、个人路径及客户数据。[提交安装问题](https://github.com/znnw4m6k7k-dotcom/dsh-delivery/issues/new/choose)
 
-- **claude.ai / Claude App**：在 [Releases](https://github.com/znnw4m6k7k-dotcom/dsh-delivery/releases) 下载 `delivery-contract-claude.zip`，到 设置 → 功能 → 技能 → 上传。
-- **Claude Code**：Mac `curl -fsSL https://raw.githubusercontent.com/znnw4m6k7k-dotcom/dsh-delivery/main/install-online.sh | sh -s -- claude`；Windows 先运行 `$env:DSH_KIT_TARGET='claude'`，再运行上面的 PowerShell 安装命令。
-- **Codex**：同上，把 `claude` 换成 `codex`。
+## 开发与许可
 
-详细说明：[Claude 版](claude-skill/安装说明.md)、[Codex 版](codex-skill/安装说明.md)。
+DSH 组合包在 `kit/`。Claude 技能是源码，Codex 版和通用版由 `codex-skill/build.py` 生成。测试、同步和发布流程见 [贡献指南](CONTRIBUTING.md)。
 
-## 怎么用
-
-- 直接说你要交付的成果：“帮我做一份 XX 行业的 XX 方案”“做一个 XX 小工具”。
-- 它会先问几个业务问题，列出验收条目请你确认，确认后才开工。
-- 做完会交给独立 QA 逐条验收。默认标准深度；你可以说“快速验收”（更快）或“深度验收”（更严）。
-- 你认可交付后说“做复盘”。它会列出候选经验，**每条都要你确认**才写进行业经验包（`~/.agents/skills/industry-<行业>/`）。经验会去掉客户名称等可识别信息，旧经验只标记“已被取代”，不会删除。
-
-## 更新和卸载
-
-- 更新：再运行一次安装。
-- 从旧版升级：技能已从 `omni-delivery` 改名为 `delivery-contract`。装过旧版 Claude / Codex 技能的，删掉 `~/.claude/skills/omni-delivery`、`~/.codex/skills/omni-delivery`，避免两个同样的技能同时生效。
-- 卸载 DSH 版：Mac `sh ~/.dsh-delivery-kit/uninstall.sh`；Windows `powershell -ExecutionPolicy Bypass -File "$HOME\.dsh-delivery-kit\uninstall.ps1"`。行业经验包会保留。
-
-## 给开发者
-
-- `kit/`：DSH 组合包。`kit/skills/` 是 5 个技能，`kit/bundle/index.js` 是守卫，`kit/install.*` 是安装脚本。
-- `claude-skill/delivery-contract/`：Claude 技能；`codex-skill/delivery-contract/` 由 `codex-skill/build.py` 生成，不要手改。
-- 测试：`node --test "kit/tests/*.test.mjs"`、`python3 -m unittest discover -s claude-skill/tests`、`python3 -m unittest discover -s codex-skill/tests`、`sh kit/tests/installer.test.sh`（Windows：`kit\tests\installer.test.ps1`）。每次提交都会在 GitHub Actions 的 macOS、Windows、Linux 上跑一遍。
-- 发布：打 `v*` 标签后自动生成三个 zip 放到 Releases。
-- 约束：不修改 DSH 源码，只用技能、预设和插件扩展。
-
-## 声明
-
-本项目是社区作品，与 DeepSeek 及 DeepSeek Harness 官方无关联，也不包含或修改 DSH 程序本身。“DeepSeek”是其所有者的商标，这里只用来说明兼容对象。工作流程受 OmniAgent 等交付型 Agent 产品的工作方式启发，但不包含它们的代码或提示词。
-
-代码以 [MIT 许可](LICENSE) 开源；包含的 DSH 改编内容见 [NOTICE](NOTICE.md)。参与贡献看 [CONTRIBUTING](CONTRIBUTING.md)，安全问题和本项目会改动哪些文件看 [SECURITY](SECURITY.md)。
+本项目是社区作品，与 DeepSeek 或 DeepSeek Harness 官方无关联。采用 [MIT 许可](LICENSE)，第三方声明见 [NOTICE](NOTICE.md)，安装写入范围和安全反馈见 [安全说明](SECURITY.md)。

@@ -6,6 +6,7 @@
 ## 这个项目会动你电脑上的哪些东西
 - DSH 版：复制文件到 `~/.dsh-delivery-kit/`，再通过 DSH 自带的命令行把组合包注册进 `~/.dsh/profiles/desktop`。不改 DSH 程序本身。卸载脚本会撤销注册并删除 `~/.dsh-delivery-kit/`。
 - Claude / Codex 版：只复制技能到 `~/.claude/skills/delivery-contract/` 或 `~/.codex/skills/delivery-contract/`。
+- 通用版复制到所选客户端的技能根目录下的 `delivery-contract/`。更新会替换该同名文件夹。使用 `custom` 时，根目录由你指定。
 - 行业经验包写在 `~/.agents/skills/industry-*/`（DSH）或对应工具的技能目录，只在你本机，卸载时保留。
 - 不收集、不上传任何数据；模型调用走你自己在 DSH / Claude / Codex 里的账号和 Key。
 

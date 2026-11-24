@@ -18,9 +18,12 @@ jobs:
           mkdir -p dist
           (cd claude-skill && zip -qr ../dist/delivery-contract-claude.zip delivery-contract)
           (cd codex-skill && zip -qr ../dist/delivery-contract-codex.zip delivery-contract)
+          python3 codex-skill/build.py --generic --check
+          (cd agent-skill && zip -qr ../dist/delivery-contract-generic.zip delivery-contract -x '*/__pycache__/*')
           # DSH 完整安装包：解压后双击 Install-Mac.command / Install-Windows.bat
           mkdir -p "dist/dsh-delivery"
-          cp -R kit Install-Mac.command Install-Windows.bat README.md LICENSE NOTICE.md "dist/dsh-delivery/"
+          cp -R kit Install-Mac.command Install-Windows.bat LICENSE NOTICE.md "dist/dsh-delivery/"
+          cp "kit/安装说明.md" "dist/dsh-delivery/README.md"
           mkdir -p dist/dsh-delivery/docs && cp "docs/安装问题排查.md" dist/dsh-delivery/docs/
           rm -rf dist/dsh-delivery/kit/tests
           (cd dist && zip -qr dsh-delivery-kit.zip dsh-delivery && rm -rf dsh-delivery)

@@ -35,6 +35,11 @@ jobs:
       - name: Codex 技能测试
         run: python -m unittest discover -s codex-skill/tests
 
+      - name: 通用 Agent 技能与在线安装测试
+        run: |
+          python codex-skill/build.py --generic --check
+          python -m unittest discover -s agent-skill/tests
+
       - name: Codex 版本和 Claude 版本保持同步
         if: runner.os != 'Windows'
         run: |

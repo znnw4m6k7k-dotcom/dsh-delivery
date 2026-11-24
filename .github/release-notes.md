@@ -1,7 +1,12 @@
-下载说明：
+## 选择安装包
 
-- **dsh-delivery-kit.zip**：给 DeepSeek Harness 用。全部解压后，Mac 双击 `Install-Mac.command`，Windows 双击 `Install-Windows.bat`。
-- **delivery-contract-claude.zip**：给 Claude 用。claude.ai / Claude App：设置 → 功能 → 技能 → 上传这个 zip；Claude Code：解压到 `~/.claude/skills/`。
-- **delivery-contract-codex.zip**：给 Codex 用。解压到 `~/.codex/skills/`。
+| 文件 | 使用方式 |
+|---|---|
+| `dsh-delivery-kit.zip` | DeepSeek Harness。全部解压后，在 macOS 双击 `Install-Mac.command`，Windows 双击 `Install-Windows.bat`。重启 DSH 后使用“交付”预设。 |
+| `delivery-contract-claude.zip` | Claude 网页或 App 可在技能设置中上传。Claude Code 用户解压到 `~/.claude/skills/`。 |
+| `delivery-contract-codex.zip` | Codex。解压到客户端扫描的技能目录，例如项目的 `.agents/skills/`。 |
+| `delivery-contract-generic.zip` | Cursor、Copilot、Gemini CLI、OpenCode、Windsurf、Devin Local 和其他支持 Agent Skills 的客户端。解压到客户端的技能根目录，保留完整的 `delivery-contract/`。 |
 
-装不上？看 [安装问题排查](https://github.com/znnw4m6k7k-dotcom/dsh-delivery/blob/main/docs/安装问题排查.md)。
+安装后重新加载技能或新开会话，输入“请使用 delivery-contract，先帮我确认这项任务的验收标准”。
+
+[完整安装指南](https://github.com/znnw4m6k7k-dotcom/dsh-delivery#选一个版本) · [English quick start](https://github.com/znnw4m6k7k-dotcom/dsh-delivery/blob/main/README.en.md) · [安装排查](https://github.com/znnw4m6k7k-dotcom/dsh-delivery/blob/main/docs/安装问题排查.md)

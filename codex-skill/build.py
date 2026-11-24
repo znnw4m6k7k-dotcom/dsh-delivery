@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""从 claude-skill/delivery-contract 生成 Codex 版技能 codex-skill/delivery-contract。
+"""从 claude-skill/delivery-contract 生成 Codex 版或 Agent Skills 通用版。
 
 只改和运行环境有关的段落（提问、计划、独立 QA、经验包位置、守卫），流程规则和脚本完全共用。
 每条替换都断言原文存在：Claude 版改了措辞而这里没跟上时，构建直接失败，不会悄悄漏改。
 用法：python3 codex-skill/build.py        # 重新生成
       python3 codex-skill/build.py --check # 只检查生成结果是否最新（测试用）
+      python3 codex-skill/build.py --generic [--check] # Agent Skills 通用版
 """
+import argparse
 import os
 import shutil
 import sys
@@ -14,6 +16,7 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, "..", "claude-skill", "delivery-contract")
 OUT = os.path.join(HERE, "delivery-contract")
+GENERIC_OUT = os.path.join(HERE, "..", "agent-skill", "delivery-contract")
 
 ENV_TABLE_OLD = """| 能力 | Claude Code | claude.ai（开了代码执行） | 都没有时 |
 |---|---|---|---|
@@ -109,12 +112,83 @@ OPENAI_YAML = """interface:
   default_prompt: "Use $delivery-contract to deliver this project: interview me first, confirm acceptance criteria, then plan, build, freeze, run independent QA and write an honest report."
 """
 
+GENERIC_ENV_TABLE = """| 能力 | 使用方式 |
+|---|---|
+| 工作目录 | 可读写文件时，在项目根目录下用 `.delivery/`；只有对话时，把合同与验收记录留在对话或可导出的文档里 |
+| 提问与计划 | 优先用宿主的提问和计划工具；没有时在对话里列出编号选项与推荐，有文件权限时同时把计划写到 `.delivery/plan.md` |
+| 独立 QA | 有授权的独立 Agent 或隔离会话时使用第 6 步的模板；只能由当前 Agent 核对时，在结论与报告中明确标注"非独立验收" |
+| 行业经验 | 从宿主能发现的技能目录或用户提供的经验包读取；复盘时优先写到已确认的可写目录，否则导出给用户 |
+| 脚本 | 有终端和 Python 3 时使用本技能的脚本；缺少任一能力时手工核对并说明未执行的检查 |"""
 
-def build(dest):
+GENERIC_DESCRIPTION = (
+    "交付合同工作法。适用于软件、商业方案、咨询报告、财务测算和调研等交付任务，"
+    "以及确认验收标准、项目复盘、沉淀或复用行业经验。 "
+    "Use to deliver a project through intake, confirmed acceptance criteria, implementation, "
+    "verification and reporting, or to run a retrospective and reuse industry lessons."
+)
+
+GENERIC_GUARD = """## 交付状态核对
+- QA 返回后运行 `delivery.py verify-hash`；文件变化时，这一轮验收作废并重新冻结。
+- 写报告前运行 `delivery.py status` 确认是 `report_allowed`，写完运行 `check-report`。
+- 有脚本权限时，通过 `lessons.py merge` / `score` 更新经验包。
+- 环境无法运行脚本时，记录可人工核对的结果，将缺少执行证据的条目标记为未验收。需要执行冻结测试的工作只有拿到对应证据后才能判通过。
+
+"""
+
+GENERIC_REPLACEMENTS = {
+    "SKILL.md": [
+        ("# 交付合同工作法（Claude 版）", "# 交付合同工作法"),
+        ("交付协议用在 Claude 里。", "交付协议用于当前 Agent。"),
+        (ENV_TABLE_OLD, GENERIC_ENV_TABLE),
+        ("下文 `$SKILL` 指本技能所在目录", "下文命令里的 `$SKILL` 需替换成本技能所在目录的完整路径"),
+        ("（含 `SKILL.md` 的那个目录）。", "（含 `SKILL.md` 的那个目录）。若通过附件或粘贴加载而无法访问引用文件，请用户提供相关参考资料，保持当前步骤的验收条件。"),
+        ("简单任务自己做；复杂任务按独立模块委派子 Agent", "简单任务自己做；宿主支持且允许委派时，复杂任务按独立模块委派子 Agent"),
+        (QA_STEP_OLD, "- 代码/应用：`independent`。宿主允许且能启动隔离上下文时，把 [references/independent-qa.md](references/independent-qa.md) 的模板交给**一个**独立 QA Agent。"),
+        ("没有子 Agent 的环境", "无法启动独立 QA 的环境"),
+        ("写报告前：所有派出的子 Agent 已返回，且 `python3 $SKILL/scripts/delivery.py status` 显示 `report_allowed`（最新冻结版本有 `release_status: ready` 的 QA 结论）。",
+         "写报告前，等待所有已派出的 QA 返回。能运行脚本时，先运行 `python3 $SKILL/scripts/delivery.py status` 核对交付状态。没有执行环境时，根据已有证据标出手工核对和未验收的条目。"),
+    ],
+    "references/independent-qa.md": [
+        (QA_DISPATCH_OLD, "通过宿主允许的子 Agent 工具或独立会话，把下面整段填好发送给一个可访问冻结工件并运行测试的 QA。仅共享本轮合同、冻结版本、工件路径与必要证据，保留上下文隔离，优先使用只读产品文件权限。没有可用执行环境时，记录未执行的验收项。"),
+        (QA_AFTER_OLD, "收到结果后，主 Agent 依次运行 `delivery.py verify-hash`、`check-qa`、`status`，独立核对当前文件、QA 结论和交付状态。哈希不符时重新冻结并重新验收。"),
+    ],
+    "references/intake.md": [
+        ("""### A4. 在 Claude 里怎么问
+- Claude Code：用 `AskUserQuestion` 工具，一次最多 4 题，每题 2–4 个选项，推荐项放第一个并在标签后加"（推荐）"；`why` 写进选项说明。一轮超过 4 题就分两次调用。
+- claude.ai：在一条消息里用编号列出本轮问题，每题列出选项并标出推荐，最后提示"可以只回编号，也可以回'按你的推荐'"。""",
+         """### A4. 怎么问
+- 宿主提供提问工具时，用它列出选项、推荐和一句影响说明。
+- 直接对话时，给本轮问题和选项编号，用户可以回编号，比如 1A 2C，或明确说"按你的推荐"。"""),
+    ],
+    "references/delegation.md": [
+        ("只在 Claude Code 等有子 Agent 工具（`Task`/`Agent`）的环境使用；claude.ai 没有子 Agent，就由主 Agent 按同样的分工顺序自己做。", "只有宿主支持且允许委派时才派子 Agent；其他情况下由主 Agent 按同样的分工顺序完成，并如实标注验收独立性。"),
+        ("Claude Code 的 Agent 工具可以按任务指定模型，没有把握时沿用默认。", "宿主允许给独立任务指定模型时，拿不准就沿用默认模型。"),
+    ],
+    "references/project-retro.md": [
+        ("""- Claude Code：`~/.claude/skills/industry-<行业>-<细分场景>/`（个人级，所有项目可用）；
+- claude.ai：技能目录只读，在输出目录建 `industry-<行业>-<细分场景>/`，合并后运行 `lessons.py package <目录>` 打成 zip，请用户在 设置 → 技能 里上传（已上传过的旧版先删掉再传新版）。下次复盘前，请用户把旧 zip 或 `references/lessons.jsonl` 发回来，解压到输出目录再合并，否则会丢历史。""",
+         """- 可以写入宿主的技能目录时，在用户确认的技能根目录下创建或更新 `industry-<行业>-<细分场景>/`。
+- 技能目录只读时，在可写的输出目录合并，再运行 `lessons.py package <目录>` 导出 ZIP，由用户按宿主的方式导入。缺少旧包时请用户先提供旧 ZIP 或 `references/lessons.jsonl`，以保留历史。
+- 只有对话时，输出已逐条确认的经验供用户保存，说明实际保存状态。"""),
+    ],
+    "references/industry-learning.md": [
+        ("（前 10 条，Claude 会在技能触发时自动加载）", "（包含前 10 条经验）"),
+    ],
+    "scripts/lessons.py": [
+        ("打成 zip，用于在 claude.ai 设置里上传", "打成 zip，可交给用户导入"),
+        ("经验包目录建议：Claude Code 用 ~/.claude/skills/industry-<行业>-<细分场景>/；\nclaude.ai 在输出目录建同名文件夹，合并后 package 成 zip 让用户上传。",
+         "经验包存放在宿主支持的技能目录，或在输出目录打成 zip 交给用户导入。"),
+        ("（在 claude.ai 设置 → 技能 里上传；先删除旧版本）", "（按宿主的技能导入方式使用）"),
+    ],
+}
+
+
+def build(dest, generic=False):
     if os.path.exists(dest):
         shutil.rmtree(dest)
     shutil.copytree(SRC, dest, ignore=shutil.ignore_patterns("__pycache__", "hooks"))
-    for rel, pairs in REPLACEMENTS.items():
+    replacements = GENERIC_REPLACEMENTS if generic else REPLACEMENTS
+    for rel, pairs in replacements.items():
         p = os.path.join(dest, rel)
         t = open(p, encoding="utf-8").read()
         for old, new in pairs:
@@ -126,15 +200,31 @@ def build(dest):
             if not sep:
                 sys.exit("构建失败：SKILL.md 里找不到守卫段落")
             _, sep2, tail = rest.partition("## 文件索引")
-            t = head + GUARD_NEW + sep2 + tail
-            t = t.replace("- `scripts/lessons.py`", "- `agents/openai.yaml`：Codex 里显示的名称和默认提示\n- `scripts/lessons.py`")
+            if not sep2:
+                sys.exit("构建失败：SKILL.md 里找不到文件索引")
+            t = head + (GENERIC_GUARD if generic else GUARD_NEW) + sep2 + tail
+            if generic:
+                before_description, separator, rest = t.partition("\ndescription: ")
+                if not separator:
+                    sys.exit("构建失败：SKILL.md 里找不到技能描述")
+                _, _, after_description = rest.partition("\n")
+                t = f"{before_description}{separator}{GENERIC_DESCRIPTION}\n{after_description}"
+            else:
+                t = t.replace("- `scripts/lessons.py`", "- `agents/openai.yaml`：Codex 里显示的名称和默认提示\n- `scripts/lessons.py`")
+        if generic and rel.endswith(".md"):
+            for script in ("delivery.py", "lessons.py"):
+                t = t.replace(f"python3 $SKILL/scripts/{script}", f'python3 "$SKILL/scripts/{script}"')
         open(p, "w", encoding="utf-8").write(t)
-    os.makedirs(os.path.join(dest, "agents"), exist_ok=True)
-    open(os.path.join(dest, "agents", "openai.yaml"), "w", encoding="utf-8").write(OPENAI_YAML)
-    for leftover in ("Claude Code", "claude.ai", "AskUserQuestion", "TodoWrite", "hooks/guard.py"):
+    if not generic:
+        os.makedirs(os.path.join(dest, "agents"), exist_ok=True)
+        open(os.path.join(dest, "agents", "openai.yaml"), "w", encoding="utf-8").write(OPENAI_YAML)
+    leftovers = ("Claude Code", "claude.ai", "AskUserQuestion", "TodoWrite", "hooks/guard.py")
+    if generic:
+        leftovers += ("codex exec", "update_plan", ".claude/skills", ".codex/skills", "DeepSeek Harness")
+    for leftover in leftovers:
         for dp, _, fns in os.walk(dest):
             for fn in fns:
-                if fn.endswith((".md", ".yaml")):
+                if fn.endswith((".md", ".yaml")) or (generic and fn.endswith(".py")):
                     if leftover in open(os.path.join(dp, fn), encoding="utf-8").read():
                         sys.exit(f"构建失败：{os.path.relpath(os.path.join(dp, fn), dest)} 里还留着 Claude 专属内容「{leftover}」")
 
@@ -164,12 +254,19 @@ if __name__ == "__main__":
             _s.reconfigure(encoding="utf-8", errors="replace")
         except Exception:
             pass
-    if "--check" in sys.argv:
-        tmp = os.path.join(tempfile.mkdtemp(), "delivery-contract")
-        build(tmp)
-        if not os.path.isdir(OUT) or not same_tree(tmp, OUT):
-            sys.exit("codex-skill/delivery-contract 不是最新的，运行 python3 codex-skill/build.py 重新生成")
-        print("Codex 版是最新的")
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--generic", action="store_true")
+    parser.add_argument("--check", action="store_true")
+    args = parser.parse_args()
+    output = GENERIC_OUT if args.generic else OUT
+    if args.check:
+        with tempfile.TemporaryDirectory() as tmp:
+            generated = os.path.join(tmp, "delivery-contract")
+            build(generated, args.generic)
+            if not same_tree(generated, output):
+                command = "python3 codex-skill/build.py" + (" --generic" if args.generic else "")
+                sys.exit(f"{os.path.relpath(output)} 不是最新的，运行 {command} 重新生成")
+        print(f"{os.path.relpath(output)} 是最新的")
     else:
-        build(OUT)
-        print(f"已生成 {os.path.relpath(OUT)}")
+        build(output, args.generic)
+        print(f"已生成 {os.path.relpath(output)}")
