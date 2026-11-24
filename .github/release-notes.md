@@ -1,3 +1,9 @@
+## 给桌面 Agent 的「交付模式」
+
+用 AI 做工具、写方案或做调研时，可以先和它确认什么算交付，再让它开工。做完后，用同一份验收清单逐条核对，并记录执行过的检查和待确认项。
+
+这个版本新增通用 Agent Skills 下载包。WorkBuddy、豆包和其他国内桌面 Agent 用户，可以按客户端的技能导入能力试装。欢迎反馈客户端版本、导入方式和执行结果。[国内桌面 Agent 试装指南](https://github.com/znnw4m6k7k-dotcom/dsh-delivery/blob/main/docs/国内桌面Agent试装.md)
+
 ## 选择安装包
 
 | 文件 | 使用方式 |

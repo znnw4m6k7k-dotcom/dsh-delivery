@@ -1,8 +1,12 @@
 # 交付模式 · Delivery Contract
 
-[English quick start](README.en.md) · [下载安装包](https://github.com/znnw4m6k7k-dotcom/dsh-delivery/releases/latest) · [安装排查](docs/安装问题排查.md) · [反馈问题](https://github.com/znnw4m6k7k-dotcom/dsh-delivery/issues/new/choose)
+[国内桌面 Agent 试装](docs/国内桌面Agent试装.md) · [下载安装包](https://github.com/znnw4m6k7k-dotcom/dsh-delivery/releases/latest) · [English quick start](README.en.md) · [反馈问题](https://github.com/znnw4m6k7k-dotcom/dsh-delivery/issues/new/choose)
 
 让 AI Agent 在开工前和你确认需求与验收标准，做完后逐条核对并提交报告。适合开发小工具、写业务方案、做调研和财务测算。你也可以在交付后复盘，把逐条确认过的经验留给下次使用。
+
+> 第一次试用可以说：“请使用 delivery-contract（交付模式）帮我做一个销售对账工具。先问我用哪些字段匹配、怎么算金额差异、异常输出成什么样。等我确认验收标准再开工。”
+
+**用 WorkBuddy 或豆包？** 如果你的客户端提供自定义技能导入，可以用通用包试装。两款客户端均待实机验证。只有聊天入口时，可以直接复制纯对话模板。[查看试装步骤和兼容状态](docs/国内桌面Agent试装.md)
 
 ## 选一个版本
 
@@ -10,10 +14,11 @@
 
 | 你使用的工具 | 安装方式 | 系统或条件 |
 |---|---|---|
-| DeepSeek Harness | [DSH 组合包](#安装-deepseek-harness) · `dsh-delivery-kit.zip` | macOS、Windows。含交付预设、技能、运行时守卫和工作台 |
+| WorkBuddy、豆包及国内桌面 Agent | [桌面客户端试装](docs/国内桌面Agent试装.md) · `delivery-contract-generic.zip` | 客户端需支持自定义 Agent Skills 导入。当前待实机验证 |
 | Claude 网页、Claude App、Claude Code | [Claude 技能](#安装-claude-或-codex) · `delivery-contract-claude.zip` | 网页和 App 需要开放技能上传。Claude Code 可安装到技能目录 |
 | Codex | [Codex 技能](#安装-claude-或-codex) · `delivery-contract-codex.zip` | CLI、App 或 IDE。安装到 Codex 扫描的目录 |
 | Cursor、Copilot、Gemini CLI、OpenCode、Windsurf、Devin Local 等 | [通用 Agent Skills 技能](#安装其他-agent) · `delivery-contract-generic.zip` | macOS、Windows、Linux，取决于客户端是否支持 `SKILL.md` |
+| DeepSeek Harness | [DSH 组合包](#安装-deepseek-harness) · `dsh-delivery-kit.zip` | macOS、Windows。含交付预设、技能、运行时守卫和工作台 |
 | 仅能聊天、上传附件或设置自定义指令的工具 | [复制纯对话模板](docs/纯对话快速开始.md) | 可以做访谈、约定验收标准和手工核对。执行测试需要实际运行环境 |
 
 安装技能无需为本项目注册账号。模型使用你在客户端已有的账号或 API Key。脚本验收需要 Python 3、终端和项目文件权限。独立 QA 需要客户端支持独立 Agent 或隔离会话。
