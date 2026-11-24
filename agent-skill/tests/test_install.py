@@ -109,7 +109,8 @@ class AgentInstall(unittest.TestCase):
             run = self.run_installer("all")
             self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
             for root in TARGET_ROOTS.values():
-                self.assertTrue((self.home / root / "delivery-contract" / "SKILL.md").is_file())
+                skill = self.home / root / "delivery-contract" / "SKILL.md"
+                self.assertTrue(skill.is_file(), f"Missing {skill}\n{(run.stdout + run.stderr).decode('utf-8', 'replace')}")
         for target, root in TARGET_ROOTS.items():
             with self.subTest(target=target):
                 run = self.run_installer(target)
