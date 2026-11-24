@@ -22,7 +22,7 @@ case "$TARGET" in
     for agent in dsh $AGENT_TARGETS generic all; do
       if [ "$TARGET" = "$agent" ]; then supported=1; break; fi
     done
-    [ -n "$supported" ] || die "不认识的参数：$TARGET（可选 dsh $AGENT_TARGETS generic custom all）"
+    [ -n "$supported" ] || die "不认识的参数：${TARGET}（可选 dsh $AGENT_TARGETS generic custom all）"
     [ "$#" -le 1 ] || die "只有 custom 目标接受技能目录参数。"
     ;;
 esac
@@ -75,10 +75,10 @@ install_skill() {
   stage=$(mktemp -d "$root/.delivery-contract.XXXXXX")
   if ! cp -R "$from" "$stage/delivery-contract" || ! rm -rf "$to" || ! mv "$stage/delivery-contract" "$to"; then
     rm -rf "$stage"
-    die "无法安装 $1 技能到 $to。"
+    die "无法安装 $1 技能到 ${to}。"
   fi
   rmdir "$stage"
-  echo "已安装 $1 技能：$to（重新加载技能或新开会话）"
+  echo "已安装 $1 技能：${to}（重新加载技能或新开会话）"
 }
 
 case "$TARGET" in

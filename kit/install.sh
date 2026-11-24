@@ -40,7 +40,7 @@ fi
 
 [ -f "$SRC_DIR/bundle/cordis.patch.yml.in" ] || die "安装包不完整：缺少 bundle/cordis.patch.yml.in。请重新下载完整的压缩包并解压后再运行（不要只复制 install.sh）。"
 [ -d "$SRC_DIR/skills/delivery-protocol" ] || die "安装包不完整：缺少 skills/。请重新下载完整的压缩包并解压后再运行。"
-case "$KIT_DIR" in *"'"*) die "安装目录里不能有单引号：$KIT_DIR。请用 DSH_DELIVERY_HOME 指定一个没有单引号的目录。" ;; esac
+case "$KIT_DIR" in *"'"*) die "安装目录里不能有单引号：${KIT_DIR}。请用 DSH_DELIVERY_HOME 指定一个没有单引号的目录。" ;; esac
 
 # 找 DSH 命令行
 CLI="${DSH_CLI:-}"
@@ -65,7 +65,7 @@ fi
 
 if [ -z "$CLI" ]; then
   if [ -n "$APP" ] && [ -d "$APP" ]; then
-    die "找到了 DeepSeek Harness（$APP），但它没有自带命令行。请把 DSH 升级到 0.2.1 或更新版本后再运行。"
+    die "找到了 DeepSeek Harness（${APP}），但它没有自带命令行。请把 DSH 升级到 0.2.1 或更新版本后再运行。"
   fi
   die "没找到 DeepSeek Harness。
 请先从官方渠道下载安装 DeepSeek Harness，并打开一次（让它完成初始化）后再运行本脚本。
@@ -95,7 +95,7 @@ else
   fi
   if [ -z "$PROFILES" ]; then
     if [ ! -d "$DSH_DATA" ]; then
-      say "提示：没找到 $DSH_DATA，看起来 DSH 还没打开过。建议先打开一次 DSH 再安装；现在先按默认 profile（desktop）安装。"
+      say "提示：没找到 ${DSH_DATA}，看起来 DSH 还没打开过。建议先打开一次 DSH 再安装；现在先按默认 profile（desktop）安装。"
     fi
     PROFILES="desktop"
   fi
@@ -116,7 +116,7 @@ fi
 
 # ---------- 2. 复制文件 ----------
 say "复制文件到 $KIT_DIR ..."
-mkdir -p "$KIT_DIR" 2>/dev/null || die "无法创建 $KIT_DIR（没有写权限）。"
+mkdir -p "$KIT_DIR" 2>/dev/null || die "无法创建 ${KIT_DIR}（没有写权限）。"
 [ -w "$KIT_DIR" ] || die "没有 $KIT_DIR 的写权限。如果以前用 sudo 装过，请先运行：sudo rm -rf \"$KIT_DIR\"，再重新安装。"
 rm -rf "$KIT_DIR/bundle.new" "$KIT_DIR/skills.new"
 cp -R "$SRC_DIR/bundle" "$KIT_DIR/bundle.new"
@@ -160,12 +160,12 @@ for PROFILE in $PROFILES; do
 done
 
 if [ -z "$OK" ]; then
-  die "组合包没有注册成功（profile:$FAILED）。
+  die "组合包没有注册成功（profile:${FAILED}）。
 请改用应用内安装：在 DSH 里新建会话，发送
   用 plugin_manager 的 install_bundle 安装 $KIT_DIR/bundle
 并在弹出的批准提示里点同意。"
 fi
-[ -z "$FAILED" ] || say "提示：profile$FAILED 没装上，已装好的是$OK。只要你平时用的那个装上了就行。"
+[ -z "$FAILED" ] || say "提示：profile$FAILED 没装上，已装好的是${OK}。只要你平时用的那个装上了就行。"
 
 RUNNING=""
 if [ "$OS" = "Darwin" ] && pgrep -f "DeepSeek Harness" >/dev/null 2>&1; then RUNNING=1; fi
