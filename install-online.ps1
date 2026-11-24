@@ -46,8 +46,11 @@
       try { Invoke-WebRequest -UseBasicParsing -Uri $u -OutFile $zip -TimeoutSec 120; $got = $true; break } catch { Write-Host "  失败：$($_.Exception.Message)" }
     }
     if (-not $got) { Fail "下载失败，可能是网络连不上 GitHub。可以换个网络或开代理后重试；或者在浏览器打开 https://github.com/$Repo ，点 Code → Download ZIP，全部解压后双击 Install-Windows.bat。" }
-    Expand-Archive -LiteralPath $zip -DestinationPath $Tmp -Force
-    $src = Get-ChildItem -LiteralPath $Tmp -Directory | Select-Object -First 1
+    # Use the ZIP overload shared by Windows PowerShell 5 and PowerShell 7.
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $unpacked = Join-Path $Tmp 'unpacked'
+    [IO.Compression.ZipFile]::ExtractToDirectory($zip, $unpacked)
+    $src = Get-ChildItem -LiteralPath $unpacked -Directory | Select-Object -First 1
     if (-not $src -or -not (Test-Path (Join-Path $src.FullName 'kit\install.ps1'))) { Fail '下载的内容不完整，请重试。' }
     if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
       Get-ChildItem -LiteralPath $src.FullName -Recurse -File | Unblock-File -ErrorAction SilentlyContinue
