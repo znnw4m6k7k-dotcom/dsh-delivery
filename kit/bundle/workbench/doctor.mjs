@@ -2,14 +2,10 @@
 // 每行格式固定为“✓ 项目：说明”或“✗ 项目：怎么修”，方便用户一眼看出哪里不正常、怎么修。
 import fs from 'node:fs'
 import path from 'node:path'
-import { listDeliveryProjects } from './state.mjs'
+import { listDeliveryProjects, readJson } from './state.mjs'
 
 // 交付预设需要随包安装的技能目录
 const REQUIRED_SKILLS = ['delivery-protocol', 'delivery-intake', 'independent-qa', 'industry-learning', 'project-retro']
-
-function readJson(file) {
-  try { return JSON.parse(fs.readFileSync(file, 'utf8')) } catch { return undefined }
-}
 
 /**
  * 生成自检报告。

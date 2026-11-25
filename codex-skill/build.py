@@ -6,6 +6,7 @@
 用法：python3 codex-skill/build.py        # 重新生成
       python3 codex-skill/build.py --check # 只检查生成结果是否最新（测试用）
       python3 codex-skill/build.py --generic [--check] # Agent Skills 通用版
+      python3 codex-skill/build.py --kit-template [--check] # DSH 版行业经验包模板
 """
 import argparse
 import os
@@ -17,6 +18,27 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, "..", "claude-skill", "delivery-contract")
 OUT = os.path.join(HERE, "delivery-contract")
 GENERIC_OUT = os.path.join(HERE, "..", "agent-skill", "delivery-contract")
+KIT_TEMPLATE_SRC = os.path.join(SRC, "assets", "pack-template")
+KIT_TEMPLATE_OUT = os.path.join(HERE, "..", "kit", "skills", "project-retro", "pack-template")
+
+# DSH 版的行业经验包模板：内容与 Claude 版共用，只改目录约定和 whenToUse。
+# DSH 的 lessons.py 读 pack-template/SKILL.md（不是 .tmpl），由生成时改名。
+KIT_TEMPLATE_REPLACEMENTS = [
+    (
+        "description: {{TITLE}} 行业经验包：同类项目的需求模式、常见验收条目、有效做法、踩坑和模板。新项目属于{{TITLE}}时，配合 delivery-contract 技能使用。由复盘流程维护，只有经用户逐条确认的经验才会写入。",
+        "description: {{TITLE}} 行业经验包：同类项目的需求模式、常见验收条目、有效做法、踩坑和模板。由 project-retro 维护，经用户确认的经验才会写入。\n"
+        "whenToUse: 新项目属于{{TITLE}}，由 industry-learning 技能加载。",
+    ),
+    (
+        "使用规则见 delivery-contract 技能的 `references/industry-learning.md`：",
+        "使用规则见 `industry-learning` 技能：",
+    ),
+    (
+        "改动走 delivery-contract 的复盘流程（`references/project-retro.md`）",
+        "改动走 project-retro",
+    ),
+]
+
 
 ENV_TABLE_OLD = """| 能力 | Claude Code | claude.ai（开了代码执行） | 都没有时 |
 |---|---|---|---|
@@ -229,6 +251,35 @@ def build(dest, generic=False):
                         sys.exit(f"构建失败：{os.path.relpath(os.path.join(dp, fn), dest)} 里还留着 Claude 专属内容「{leftover}」")
 
 
+def build_kit_template(dest):
+    """生成 DSH 版行业经验包模板：与 Claude 版同文，只换目录约定和 whenToUse。
+
+    DSH 的 lessons.py 读 pack-template/SKILL.md 并把占位符原地替换，
+    所以生成时把 SKILL.md.tmpl 改名为 SKILL.md。
+    """
+    if os.path.exists(dest):
+        shutil.rmtree(dest)
+    shutil.copytree(KIT_TEMPLATE_SRC, dest, ignore=shutil.ignore_patterns("__pycache__"))
+    tmpl = os.path.join(dest, "SKILL.md.tmpl")
+    if not os.path.exists(tmpl):
+        sys.exit("构建失败：pack-template 里没有 SKILL.md.tmpl")
+    t = open(tmpl, encoding="utf-8").read()
+    for old, new in KIT_TEMPLATE_REPLACEMENTS:
+        if old not in t:
+            sys.exit(f"构建失败：pack-template/SKILL.md.tmpl 里找不到要替换的原文：\n{old[:120]}")
+        t = t.replace(old, new)
+    os.remove(tmpl)
+    open(os.path.join(dest, "SKILL.md"), "w", encoding="utf-8").write(t)
+    for dp, _, fns in os.walk(dest):
+        for fn in fns:
+            if not fn.endswith(".md"):
+                continue
+            full = os.path.join(dp, fn)
+            text = open(full, encoding="utf-8").read()
+            if "delivery-contract" in text:
+                sys.exit(f"构建失败：{os.path.relpath(full, dest)} 里还留着 Claude 专属内容「delivery-contract」")
+
+
 def same_tree(a, b):
     # 按内容比较，忽略换行符差异（Windows 检出时 .md 是 CRLF、.py 是 LF，生成时统一按系统换行写）
     def files(root):
@@ -256,17 +307,26 @@ if __name__ == "__main__":
             pass
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--generic", action="store_true")
+    parser.add_argument("--kit-template", action="store_true", help="生成 DSH 版行业经验包模板到 kit/skills/project-retro/pack-template")
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
-    output = GENERIC_OUT if args.generic else OUT
+    if args.generic and args.kit_template:
+        sys.exit("--generic 和 --kit-template 不能一起用")
+    if args.kit_template:
+        output = KIT_TEMPLATE_OUT
+        command = "python3 codex-skill/build.py --kit-template"
+        builder = build_kit_template
+    else:
+        output = GENERIC_OUT if args.generic else OUT
+        command = "python3 codex-skill/build.py" + (" --generic" if args.generic else "")
+        builder = lambda dest: build(dest, args.generic)
     if args.check:
         with tempfile.TemporaryDirectory() as tmp:
-            generated = os.path.join(tmp, "delivery-contract")
-            build(generated, args.generic)
+            generated = os.path.join(tmp, "out")
+            builder(generated)
             if not same_tree(generated, output):
-                command = "python3 codex-skill/build.py" + (" --generic" if args.generic else "")
                 sys.exit(f"{os.path.relpath(output)} 不是最新的，运行 {command} 重新生成")
         print(f"{os.path.relpath(output)} 是最新的")
     else:
-        build(output, args.generic)
+        builder(output)
         print(f"已生成 {os.path.relpath(output)}")

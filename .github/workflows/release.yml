@@ -41,6 +41,8 @@ jobs:
           cp "kit/安装说明.md" "dist/dsh-delivery/README.md"
           mkdir -p dist/dsh-delivery/docs && cp "docs/安装问题排查.md" dist/dsh-delivery/docs/
           rm -rf dist/dsh-delivery/kit/tests
+          # 同一份安装说明只留包根目录的 README.md，避免解压后看到两份字节完全相同的文档
+          rm -f "dist/dsh-delivery/kit/安装说明.md"
           # 写入构建信息：用户用 /delivery-doctor 就能看出装的是哪一批包，不用只靠版本号
           case "${GITHUB_REF_NAME}" in v*) BUILD_TAG="${GITHUB_REF_NAME}" ;; *) BUILD_TAG="nightly" ;; esac
           printf '{"tag":"%s","built_at":"%s"}\n' "$BUILD_TAG" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
