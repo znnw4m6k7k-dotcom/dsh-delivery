@@ -27,6 +27,8 @@ jobs:
           cp "kit/安装说明.md" "dist/dsh-delivery/README.md"
           mkdir -p dist/dsh-delivery/docs && cp "docs/安装问题排查.md" dist/dsh-delivery/docs/
           rm -rf dist/dsh-delivery/kit/tests
+          # 同一份安装说明只留包根目录的 README.md，避免解压后看到两份字节完全相同的文档
+          rm -f "dist/dsh-delivery/kit/安装说明.md"
           (cd dist && zip -qr dsh-delivery-kit.zip dsh-delivery && rm -rf dsh-delivery)
           ls -la dist
       - name: 发布
