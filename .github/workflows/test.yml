@@ -40,6 +40,9 @@ jobs:
           python codex-skill/build.py --generic --check
           python -m unittest discover -s agent-skill/tests
 
+      - name: DSH 经验包模板与 Claude 版保持同步
+        run: python codex-skill/build.py --kit-template --check
+
       - name: Codex 版本和 Claude 版本保持同步
         if: runner.os != 'Windows'
         run: |
