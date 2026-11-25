@@ -5,7 +5,7 @@ import path from 'node:path'
 import crypto from 'node:crypto'
 import { findDeliveryRoot, deliveryState, frozenFiles, parseVersion, compareVersion } from '../index.js'
 
-function readJson(file) {
+export function readJson(file) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')) } catch { return undefined }
 }
 function readJsonl(file) {
