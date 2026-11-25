@@ -1,8 +1,10 @@
 # 交付模式 · Delivery Contract
 
-[国内桌面 Agent 试装](docs/国内桌面Agent试装.md) · [下载安装包](https://github.com/znnw4m6k7k-dotcom/dsh-delivery/releases/latest) · [English quick start](README.en.md) · [反馈问题](https://github.com/znnw4m6k7k-dotcom/dsh-delivery/issues/new/choose)
+[下载完整工具 ZIP](https://github.com/znnw4m6k7k-dotcom/dsh-delivery/releases/latest/download/delivery-contract-generic.zip) · [下载单文件 Agent](delivery-contract.md) · [使用说明](docs/纯对话快速开始.md) · [English quick start](README.en.md)
 
 让 AI Agent 在开工前和你确认需求与验收标准，做完后逐条核对并提交报告。适合开发小工具、写业务方案、做调研和财务测算。你也可以在交付后复盘，把逐条确认过的经验留给下次使用。
+
+**有终端或文件权限的 Agent** 可以下载完整 ZIP，让 Agent 读取 `delivery-contract/SKILL.md` 并运行仓库脚本。**只有聊天功能的 AI 工具**可以上传单文件版或粘贴全文来走同一套交付流程。支持 Agent Skills 的客户端可一次导入完整包，以后直接调用。[按工具能力选择用法](docs/纯对话快速开始.md)
 
 > 第一次试用可以说：“请使用 delivery-contract（交付模式）帮我做一个销售对账工具。先问我用哪些字段匹配、怎么算金额差异、异常输出成什么样。等我确认验收标准再开工。”
 
@@ -19,7 +21,8 @@
 | Codex | [Codex 技能](#安装-claude-或-codex) · `delivery-contract-codex.zip` | CLI、App 或 IDE。安装到 Codex 扫描的目录 |
 | Cursor、Copilot、Gemini CLI、OpenCode、Windsurf、Devin Local 等 | [通用 Agent Skills 技能](#安装其他-agent) · `delivery-contract-generic.zip` | macOS、Windows、Linux，取决于客户端是否支持 `SKILL.md` |
 | DeepSeek Harness | [DSH 组合包](#安装-deepseek-harness) · `dsh-delivery-kit.zip` | macOS、Windows。含交付预设、技能、运行时守卫和工作台 |
-| 仅能聊天、上传附件或设置自定义指令的工具 | [复制纯对话模板](docs/纯对话快速开始.md) | 可以做访谈、约定验收标准和手工核对。执行测试需要实际运行环境 |
+| 没有技能安装入口，但能读文件并运行命令的 Agent | [直接运行仓库工具](docs/纯对话快速开始.md#能访问文件并运行命令) · `delivery-contract-generic.zip` | Python 3、终端和工作区文件权限 |
+| 聊天、上传附件或设置自定义指令的 AI 工具 | [单文件 Agent](delivery-contract.md) · `delivery-contract.md` | 上传或粘贴即可启动工作流。执行测试需要实际运行环境 |
 
 安装技能无需为本项目注册账号。模型使用你在客户端已有的账号或 API Key。脚本验收需要 Python 3、终端和项目文件权限。独立 QA 需要客户端支持独立 Agent 或隔离会话。
 
@@ -83,7 +86,7 @@ irm https://raw.githubusercontent.com/znnw4m6k7k-dotcom/dsh-delivery/main/instal
 ## 第一次怎么用
 
 1. 重新加载技能或新建会话。客户端有技能列表时，先确认能看到 `delivery-contract`。DSH 用户在“交付”预设下继续。
-2. 复制下面的示例。能读技能的客户端会使用技能。只有聊天功能时，先发 [纯对话模板](docs/纯对话快速开始.md)。
+2. 复制下面的示例。能读技能的客户端会使用技能。只有聊天功能时，先上传或粘贴 [单文件 Agent](delivery-contract.md)。
 3. 预期第一轮收到的是需求问题。你明确确认验收条目后，Agent 才开始实现。
 
 > 请使用 delivery-contract，帮我做一个 CSV 销售汇总工具。开始前先问清楚输入、输出和异常数据怎么处理，再给我确认验收条目。做完说明实际执行了哪些检查，还有哪些待确认。
