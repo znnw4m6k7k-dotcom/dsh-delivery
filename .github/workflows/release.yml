@@ -13,6 +13,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: 核对发版标签与插件版本
+        run: |
+          VER=$(python3 -c "import json;print(json.load(open('kit/bundle/package.json'))['version'])")
+          REF_NAME="${GITHUB_REF_NAME}"
+          case "$REF_NAME" in
+            v*)
+              if [ "$REF_NAME" != "v$VER" ]; then
+                echo "标签 $REF_NAME 与 kit/bundle/package.json 的 version $VER 不一致。"
+                echo "发版前先把 version 改成 ${REF_NAME#v}，否则用户装完 /delivery-doctor 显示的版本对不上 Release。"
+                exit 1
+              fi
+              ;;
+            *) echo "非 v* 标签（$REF_NAME），跳过版本核对，产物按 nightly 发布" ;;
+          esac
       - name: 打包
         run: |
           mkdir -p dist
@@ -29,6 +43,10 @@ jobs:
           rm -rf dist/dsh-delivery/kit/tests
           # 同一份安装说明只留包根目录的 README.md，避免解压后看到两份字节完全相同的文档
           rm -f "dist/dsh-delivery/kit/安装说明.md"
+          # 写入构建信息：用户用 /delivery-doctor 就能看出装的是哪一批包，不用只靠版本号
+          case "${GITHUB_REF_NAME}" in v*) BUILD_TAG="${GITHUB_REF_NAME}" ;; *) BUILD_TAG="nightly" ;; esac
+          printf '{"tag":"%s","built_at":"%s"}\n' "$BUILD_TAG" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            > "dist/dsh-delivery/kit/bundle/build.json"
           (cd dist && zip -qr dsh-delivery-kit.zip dsh-delivery && rm -rf dsh-delivery)
           ls -la dist
       - name: 发布
@@ -37,4 +55,8 @@ jobs:
         run: |
           TAG="${GITHUB_REF_NAME}"
           case "$TAG" in v*) ;; *) TAG="nightly"; gh release delete nightly -y --cleanup-tag || true ;; esac
-          gh release create "$TAG" dist/*.zip dist/delivery-contract.md --title "$TAG" --notes-file .github/release-notes.md || gh release upload "$TAG" dist/*.zip dist/delivery-contract.md --clobber
+          # 每个版本单独一份说明；没写就退回通用模板
+          NOTES="docs/releases/$TAG.md"
+          [ -f "$NOTES" ] || NOTES=".github/release-notes.md"
+          echo "使用发布说明：$NOTES"
+          gh release create "$TAG" dist/*.zip dist/delivery-contract.md --title "$TAG" --notes-file "$NOTES" || gh release upload "$TAG" dist/*.zip dist/delivery-contract.md --clobber

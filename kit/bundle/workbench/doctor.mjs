@@ -25,6 +25,15 @@ export function doctorReport({ kitDir, cwd, home } = {}) {
   if (pkg && typeof pkg.version === 'string') ok('插件版本', pkg.version)
   else bad('插件版本', `读不到 ${pkgFile ?? 'bundle/package.json'} 的版本号；重新运行 install.sh 覆盖安装`)
 
+  // 1b. 构建信息：发版包里带 bundle/build.json（发版标签 + 打包时间），由 release 工作流写入。
+  //     只有版本号时，两次发版可能都是同一个号（1.4.1 就连续用在 v1.0.0 和 v1.1.0 上），分不清装的哪批。
+  const build = kit ? readJson(path.join(kit, 'bundle', 'build.json')) : undefined
+  if (build && typeof build.tag === 'string' && build.tag) {
+    ok('构建信息', `发版 ${build.tag}${build.built_at ? `，打包于 ${build.built_at}` : ''}`)
+  } else {
+    ok('构建信息', '没有 build.json（源码安装，或 1.5.0 之前发布的包）')
+  }
+
   // 2. 守卫是否加载：这个命令能运行，就说明 Host 插件加载成功
   ok('守卫加载', '/delivery-doctor 能运行，说明交付守卫 Host 插件已加载')
 

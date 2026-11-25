@@ -22,4 +22,8 @@ sh kit/tests/installer.test.sh          # Windows：kit\tests\installer.test.ps1
 - 文档和提示语用简体中文，写给不懂技术的使用者也能看懂。
 
 ## 发布
-维护者打 `v*` 标签后，GitHub Actions 会自动生成安装包放到 Releases。
+1. 把 `kit/bundle/package.json` 的 `version` 改成新版本号。
+2. 在 `docs/releases/v<版本>.md` 写这一版的说明；不写就退回 `.github/release-notes.md` 的兜底模板。
+3. 打与版本号一致的标签：`git tag v1.5.0 && git push origin v1.5.0`。
+
+发版流程会先核对标签和版本号，不一致直接失败（否则用户装完 `/delivery-doctor` 显示的版本会和 Release 对不上）。通过后自动生成安装包放到 Releases，并把标签和打包时间写进包内的 `bundle/build.json`。
