@@ -16,6 +16,7 @@ jobs:
       - name: 打包
         run: |
           mkdir -p dist
+          cp delivery-contract.md dist/
           (cd claude-skill && zip -qr ../dist/delivery-contract-claude.zip delivery-contract)
           (cd codex-skill && zip -qr ../dist/delivery-contract-codex.zip delivery-contract)
           python3 codex-skill/build.py --generic --check
@@ -34,4 +35,4 @@ jobs:
         run: |
           TAG="${GITHUB_REF_NAME}"
           case "$TAG" in v*) ;; *) TAG="nightly"; gh release delete nightly -y --cleanup-tag || true ;; esac
-          gh release create "$TAG" dist/*.zip --title "$TAG" --notes-file .github/release-notes.md || gh release upload "$TAG" dist/*.zip --clobber
+          gh release create "$TAG" dist/*.zip dist/delivery-contract.md --title "$TAG" --notes-file .github/release-notes.md || gh release upload "$TAG" dist/*.zip dist/delivery-contract.md --clobber

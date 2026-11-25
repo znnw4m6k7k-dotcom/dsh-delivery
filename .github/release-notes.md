@@ -12,7 +12,8 @@
 | `delivery-contract-claude.zip` | Claude 网页或 App 可在技能设置中上传。Claude Code 用户解压到 `~/.claude/skills/`。 |
 | `delivery-contract-codex.zip` | Codex。解压到客户端扫描的技能目录，例如项目的 `.agents/skills/`。 |
 | `delivery-contract-generic.zip` | Cursor、Copilot、Gemini CLI、OpenCode、Windsurf、Devin Local 和其他支持 Agent Skills 的客户端。解压到客户端的技能根目录，保留完整的 `delivery-contract/`。 |
+| `delivery-contract.md` | 单文件版。上传到任意会读取附件的 AI 工具，或把全文粘贴进对话或自定义指令。 |
 
-安装后重新加载技能或新开会话，输入“请使用 delivery-contract，先帮我确认这项任务的验收标准”。
+有终端和文件权限的 Agent 可直接下载通用 ZIP，读取 `delivery-contract/SKILL.md` 并运行脚本。加载技能或单文件后，输入“请使用 delivery-contract，先帮我确认这项任务的验收标准”。[按工具能力选择用法](https://github.com/znnw4m6k7k-dotcom/dsh-delivery/blob/main/docs/纯对话快速开始.md)
 
 [完整安装指南](https://github.com/znnw4m6k7k-dotcom/dsh-delivery#选一个版本) · [English quick start](https://github.com/znnw4m6k7k-dotcom/dsh-delivery/blob/main/README.en.md) · [安装排查](https://github.com/znnw4m6k7k-dotcom/dsh-delivery/blob/main/docs/安装问题排查.md)
