@@ -101,6 +101,18 @@ test('doctorReport：没有交付项目和没有经验包时说明“还没有�
   assert.doesNotMatch(text, /✗/)
 })
 
+test('doctorReport：发版包读 build.json 显示批次，源码包说明没有 build.json', () => {
+  const { ws } = makeWorkspace()
+  const kit = makeKit()
+  // 源码安装（没有 build.json）：不能报错，也不能显示空标签
+  let text = doctorReport({ kitDir: kit, cwd: ws, home: makeHome() })
+  assert.match(text, /✓ 构建信息：没有 build\.json/)
+  // 发版包：显示 tag 和打包时间
+  fs.writeFileSync(path.join(kit, 'bundle', 'build.json'), JSON.stringify({ tag: 'v1.5.0', built_at: '2026-11-25T10:00:00Z' }))
+  text = doctorReport({ kitDir: kit, cwd: ws, home: makeHome() })
+  assert.match(text, /✓ 构建信息：发版 v1\.5\.0，打包于 2026-11-25T10:00:00Z/)
+})
+
 test('/delivery-doctor 注册到 commands 服务，返回中文检查结果', async () => {
   const { ws } = makeWorkspace()
   const registered = []

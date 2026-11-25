@@ -59,6 +59,7 @@ whenToUse: 用户批准交付后，或用户说"复盘""沉淀经验""总结这�
 ## 6. 合并
 经验包目录：`~/.agents/skills/industry-<行业>-<细分场景>/`。不存在就先创建：
 `python3 scripts/lessons.py new-pack <目录> --industry <行业> --scenario <细分场景> --title <中文名>`
+`--industry` 和 `--scenario` 要写成英文小写短横线的 slug（例如 `food-beverage` / `small-store-launch`），它们会拼成技能名 `industry-food-beverage-small-store-launch`；中文名放 `--title`。技能名不符合 `[a-z0-9-]` 时脚本会直接报错。
 然后：
 `python3 scripts/lessons.py merge <目录> .delivery/retro/candidates.jsonl --project <项目编号> --terms .delivery/retro/client_terms.txt`
 脚本只合并 approved/edited 的条目，会再次做脱敏检查，并自动更新 `lessons.md`、SKILL.md 里的前 10 条和 `CHANGELOG.md`。
