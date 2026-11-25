@@ -12,7 +12,7 @@
 
 ## 选一个版本
 
-在 [GitHub Releases](https://github.com/znnw4m6k7k-dotcom/dsh-delivery/releases/latest) 展开 **Assets** 查看安装包。若当前 Release 还没有通用 ZIP，可以直接使用下面的源码安装方式。
+在 [GitHub Releases](https://github.com/znnw4m6k7k-dotcom/dsh-delivery/releases/latest) 展开 **Assets** 查看安装包。若下载受阻，可以直接使用下面的源码安装方式。
 
 | 你使用的工具 | 安装方式 | 系统或条件 |
 |---|---|---|

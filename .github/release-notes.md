@@ -2,7 +2,8 @@
 
 用 AI 做工具、写方案或做调研时，可以先和它确认什么算交付，再让它开工。做完后，用同一份验收清单逐条核对，并记录执行过的检查和待确认项。
 
-这个版本新增通用 Agent Skills 下载包。WorkBuddy、豆包和其他国内桌面 Agent 用户，可以按客户端的技能导入能力试装。欢迎反馈客户端版本、导入方式和执行结果。[国内桌面 Agent 试装指南](https://github.com/znnw4m6k7k-dotcom/dsh-delivery/blob/main/docs/国内桌面Agent试装.md)
+> 这是**兜底模板**：nightly 构建，或正式版没在 `docs/releases/<tag>.md` 写说明时使用。
+> 正式发版请在 `docs/releases/<tag>.md` 按版本写一份，发布流程会优先用它。
 
 ## 选择安装包
 

@@ -108,10 +108,15 @@ def validate(c):
 def cmd_new_pack(a):
     if os.path.exists(os.path.join(a.pack, "pack.json")):
         sys.exit(f"{a.pack} 已经是经验包")
+    name = f"industry-{a.industry}-{a.scenario}"
+    # 技能名同时是 Agent Skills 的 name：只能小写字母、数字和连字符，否则 Claude / Codex 版会直接拒绝
+    if not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", name) or len(name) > 64:
+        sys.exit(f"技能名 {name} 不合规：行业和细分场景只能用小写字母、数字和连字符，总长不超过 64")
+    if os.path.basename(os.path.normpath(a.pack)) != name:
+        print(f"提醒：经验包文件夹最好命名为 {name}，与技能名一致")
     tpl = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "pack-template")
     shutil.copytree(tpl, a.pack, dirs_exist_ok=True)
     skill = os.path.join(a.pack, "SKILL.md")
-    name = f"industry-{a.industry}-{a.scenario}"
     body = open(skill, encoding="utf-8").read()
     body = body.replace("industry-TEMPLATE", name).replace("{{TITLE}}", a.title)
     open(skill, "w", encoding="utf-8").write(body)
